@@ -108,10 +108,29 @@ model Company {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  members CompanyMember[]
-  clients Client[]
+  members      CompanyMember[]
+  clients      Client[]
+  subscription Subscription?
 
   @@map("companies")
+}
+
+/// Assinatura (Stripe) vinculada a uma empresa — 1 para 1
+model Subscription {
+  id                   String    @id @default(cuid())
+  companyId            String    @unique @map("company_id")
+  stripeCustomerId     String?   @unique @map("stripe_customer_id")
+  stripeSubscriptionId String?   @unique @map("stripe_subscription_id")
+  stripePriceId        String?   @map("stripe_price_id")
+  /// Status da assinatura: free, active, past_due, canceled, etc.
+  status               String    @default("free")
+  currentPeriodEnd     DateTime? @map("current_period_end")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
 }
 
 /// Vínculo entre usuário e empresa, com papel (role) por membership

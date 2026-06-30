@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { IntegrationProvider } from "@/app/generated/prisma";
 import { auth } from "@/auth";
+import { BlendedSummary } from "@/components/blended-summary";
 import { IntegrationCard } from "@/components/integration-card";
 import {
   MetricsChart,
@@ -47,12 +48,38 @@ const PROVIDERS = [
   },
 ] as const;
 
+const INTEGRATION_ERROR_MESSAGES: Record<string, string> = {
+  google_oauth:
+    "Não foi possível concluir a autenticação com o Google. Tente novamente.",
+  meta_oauth:
+    "Não foi possível concluir a autenticação com o Meta. Tente novamente.",
+  state_mismatch:
+    "Falha na validação de segurança do fluxo (state). Por favor, tente conectar novamente.",
+  invalid_provider: "Provedor de integração inválido.",
+  missing_credentials:
+    "As credenciais do Google não estão configuradas no servidor.",
+  token_exchange:
+    "Não foi possível trocar o código de autorização pelo token do Google.",
+  no_access_token: "O Google não retornou um token de acesso válido.",
+  forbidden: "Você não tem permissão para gerenciar este cliente.",
+};
+
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 export default async function ClientDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { id } = await params;
+  const query = await searchParams;
+
+  const integrationSuccess = firstParam(query.integration);
+  const integrationError = firstParam(query.integration_error);
 
   const session = await auth();
   if (!session?.user?.id) {
@@ -119,6 +146,34 @@ export default async function ClientDetailPage({
             {client.email ?? "Sem e-mail"} · Integrações de marketing
           </p>
         </header>
+
+        {integrationError && (
+          <div
+            role="alert"
+            className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+          >
+            <p className="font-medium">Falha ao conectar a integração</p>
+            <p className="mt-0.5 text-red-300/90">
+              {INTEGRATION_ERROR_MESSAGES[integrationError] ??
+                "Ocorreu um problema inesperado durante a autenticação."}
+            </p>
+          </div>
+        )}
+
+        {integrationSuccess && !integrationError && (
+          <div
+            role="status"
+            className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300"
+          >
+            <p className="font-medium">Integração conectada com sucesso!</p>
+            <p className="mt-0.5 text-emerald-300/90">
+              As credenciais foram salvas e já podem ser usadas na
+              sincronização.
+            </p>
+          </div>
+        )}
+
+        <BlendedSummary channels={channels} />
 
         <section className="mb-10">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

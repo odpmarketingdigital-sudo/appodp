@@ -1,13 +1,14 @@
 "use client";
 
 import clsx from "clsx";
-import { LayoutDashboard, Settings, Users } from "lucide-react";
+import { LayoutDashboard, Settings, Users, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Visão Geral", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/clients", label: "Clientes", icon: Users, exact: false },
+  { href: "/dashboard/team", label: "Time", icon: UsersRound, exact: false },
   { href: "/dashboard/settings", label: "Configurações", icon: Settings, exact: false },
 ] as const;
 

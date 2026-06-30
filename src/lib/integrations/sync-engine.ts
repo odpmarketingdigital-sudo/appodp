@@ -59,10 +59,13 @@ export type GlobalSyncReport = {
 export async function runGlobalSync(): Promise<GlobalSyncReport> {
   const startedAt = new Date();
 
+  // Apenas tokens de empresas com assinatura ativa entram no sync em background.
+  // Agências gratuitas ou inadimplentes não consomem processamento da Cron.
   const tokens = await prisma.integrationToken.findMany({
     where: {
       isActive: true,
       provider: { in: [...SYNCABLE_PROVIDERS] },
+      client: { company: { subscription: { status: "active" } } },
     },
   });
 
@@ -123,6 +126,60 @@ async function syncToken(
       error: error instanceof Error ? error.message : "Erro desconhecido.",
     };
   }
+}
+
+/** Dados para criar/atualizar um token de integração de um cliente. */
+export type UpsertIntegrationTokenInput = {
+  clientId: string;
+  provider: IntegrationProvider;
+  accessToken: string;
+  refreshToken?: string | null;
+  expiresAt?: Date | null;
+  scope?: string | null;
+  externalAccountId?: string | null;
+};
+
+/**
+ * Cria ou atualiza (upsert) o token de integração de um cliente, pela chave
+ * composta (cliente, provedor). No update, o `refreshToken` só é sobrescrito
+ * quando um novo valor é fornecido — provedores OAuth nem sempre reenviam o
+ * refresh token em reconexões.
+ */
+export async function upsertIntegrationToken(
+  input: UpsertIntegrationTokenInput,
+): Promise<void> {
+  const {
+    clientId,
+    provider,
+    accessToken,
+    refreshToken,
+    expiresAt,
+    scope,
+    externalAccountId,
+  } = input;
+
+  await prisma.integrationToken.upsert({
+    where: { clientId_provider: { clientId, provider } },
+    create: {
+      clientId,
+      provider,
+      accessToken,
+      refreshToken: refreshToken ?? null,
+      expiresAt: expiresAt ?? null,
+      scope: scope ?? null,
+      externalAccountId: externalAccountId ?? null,
+      isActive: true,
+    },
+    update: {
+      accessToken,
+      expiresAt: expiresAt ?? null,
+      scope: scope ?? null,
+      isActive: true,
+      // Preserva o refresh token / external id existentes quando não enviados.
+      ...(refreshToken ? { refreshToken } : {}),
+      ...(externalAccountId ? { externalAccountId } : {}),
+    },
+  });
 }
 
 /** Converte um `IntegrationToken` persistido em credenciais de integração. */

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentMembership } from "@/lib/company";
 import { prisma } from "@/lib/prisma";
+import { getClientLimitState } from "@/lib/subscription";
 
 export default async function ClientsPage() {
   const session = await auth();
@@ -21,6 +22,11 @@ export default async function ClientsPage() {
       })
     : [];
 
+  const limitState = membership
+    ? await getClientLimitState(membership.company.id)
+    : null;
+  const atLimit = limitState?.atLimit ?? false;
+
   return (
     <main className="flex-1 p-6">
       <div className="mx-auto w-full max-w-2xl">
@@ -29,14 +35,38 @@ export default async function ClientsPage() {
             <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
               Clientes
             </h1>
-            <Link
-              href="/dashboard/clients/new"
-              className="inline-flex items-center justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
-            >
-              Novo cliente
-            </Link>
+            {atLimit ? (
+              <span
+                aria-disabled
+                title="Limite do plano gratuito atingido"
+                className="inline-flex cursor-not-allowed items-center justify-center rounded-full bg-zinc-300 px-4 py-2 text-sm font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500"
+              >
+                Novo cliente
+              </span>
+            ) : (
+              <Link
+                href="/dashboard/clients/new"
+                className="inline-flex items-center justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+              >
+                Novo cliente
+              </Link>
+            )}
           </div>
         </header>
+
+        {atLimit && (
+          <div className="mb-6 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm text-violet-300">
+            Você atingiu o limite de {limitState?.limit} cliente do plano
+            gratuito.{" "}
+            <Link
+              href="/dashboard/settings"
+              className="font-semibold underline underline-offset-2 hover:text-violet-200"
+            >
+              Fazer upgrade para o Premium
+            </Link>{" "}
+            para adicionar mais clientes.
+          </div>
+        )}
 
         <section className="rounded-2xl border border-black/5 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-950">
           {clients.length === 0 ? (

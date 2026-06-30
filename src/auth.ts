@@ -12,7 +12,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   providers: [
     // Lê automaticamente AUTH_GOOGLE_ID e AUTH_GOOGLE_SECRET do ambiente.
-    Google,
+    // `allowDangerousEmailAccountLinking` permite que um usuário convidado
+    // (pré-criado pelo e-mail) faça login com o Google e vincule a conta —
+    // seguro aqui porque o Google entrega e-mails já verificados.
+    Google({ allowDangerousEmailAccountLinking: true }),
   ],
   callbacks: {
     // Expõe o id do usuário na sessão para uso no app.

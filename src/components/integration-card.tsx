@@ -6,9 +6,41 @@ import {
   saveIntegrationTokenAction,
   type IntegrationFormState,
 } from "@/actions/integration";
-import type { IntegrationProvider } from "@/app/generated/prisma";
+import { IntegrationProvider } from "@/app/generated/prisma";
 
 const initialState: IntegrationFormState = { status: "idle" };
+
+type OAuthConfig = { url: string; label: string };
+
+/**
+ * Retorna a configuração de OAuth para provedores que usam fluxo de
+ * autorização (Google/Meta) em vez do formulário manual de token.
+ */
+function getOAuthConfig(
+  provider: IntegrationProvider,
+  clientId: string,
+): OAuthConfig | null {
+  const encodedClientId = encodeURIComponent(clientId);
+
+  if (
+    provider === IntegrationProvider.GA4 ||
+    provider === IntegrationProvider.GOOGLE_ADS
+  ) {
+    return {
+      url: `/api/integrations/google/auth?clientId=${encodedClientId}&provider=${provider}`,
+      label: "Google",
+    };
+  }
+
+  if (provider === IntegrationProvider.META_ADS) {
+    return {
+      url: `/api/integrations/meta/auth?clientId=${encodedClientId}`,
+      label: "Meta",
+    };
+  }
+
+  return null;
+}
 
 type IntegrationCardProps = {
   clientId: string;
@@ -32,6 +64,8 @@ export function IntegrationCard({
     saveIntegrationTokenAction,
     initialState,
   );
+
+  const oauth = getOAuthConfig(provider, clientId);
 
   return (
     <div className="flex flex-col rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
@@ -70,7 +104,16 @@ export function IntegrationCard({
         </p>
       )}
 
-      {!open ? (
+      {oauth ? (
+        <a
+          href={oauth.url}
+          className="mt-4 inline-flex items-center justify-center self-start rounded-full border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800"
+        >
+          {connected
+            ? `Reconectar com ${oauth.label}`
+            : `Conectar com ${oauth.label}`}
+        </a>
+      ) : !open ? (
         <button
           type="button"
           onClick={() => setOpen(true)}

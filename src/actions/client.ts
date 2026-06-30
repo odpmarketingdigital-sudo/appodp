@@ -7,6 +7,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { getCurrentMembership } from "@/lib/company";
 import { prisma } from "@/lib/prisma";
+import { getClientLimitState } from "@/lib/subscription";
 
 export type ClientFormState = {
   status: "idle" | "success" | "error";
@@ -72,6 +73,15 @@ export async function createClientAction(
   const membership = await getCurrentMembership(session.user.id);
   if (!membership) {
     return { status: "error", message: "Nenhuma empresa associada ao usuário." };
+  }
+
+  // Trava de plano: agências gratuitas têm limite de clientes.
+  const limitState = await getClientLimitState(membership.company.id);
+  if (limitState.atLimit) {
+    return {
+      status: "error",
+      message: `Limite de ${limitState.limit} cliente atingido no plano gratuito. Faça upgrade para o Premium para adicionar mais.`,
+    };
   }
 
   const { name, email } = parsed.data;
