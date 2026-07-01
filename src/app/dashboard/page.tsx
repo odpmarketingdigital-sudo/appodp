@@ -1,83 +1,141 @@
-import {
-  MousePointerClick,
-  Plug,
-  TrendingUp,
-  Users,
-} from "lucide-react";
+import { Suspense } from "react";
+import { Users } from "lucide-react";
 
 import { auth } from "@/auth";
+import { DashboardDateRange } from "@/components/dashboard-date-range";
+import { Ga4DashboardCharts } from "@/components/ga4-dashboard-charts";
 import { getCurrentMembership } from "@/lib/company";
+import { getCompanyGa4Connection } from "@/lib/company-ga4";
+import {
+  parseDateRangePreset,
+  resolveDateRangePreset,
+} from "@/lib/date-ranges";
+import { fetchGa4DashboardReport } from "@/lib/integrations/ga4-api";
 import { prisma } from "@/lib/prisma";
 
-export default async function DashboardPage() {
+type DashboardPageProps = {
+  searchParams: Promise<{ period?: string }>;
+};
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const session = await auth();
   const membership = session?.user?.id
     ? await getCurrentMembership(session.user.id)
     : null;
 
-  // Total de Clientes é real; as demais métricas são mockadas por enquanto.
+  const params = await searchParams;
+  const period = parseDateRangePreset(params.period);
+  const range = resolveDateRangePreset(period);
+
   const totalClients = membership
     ? await prisma.client.count({
         where: { companyId: membership.company.id },
       })
     : 0;
 
-  const metrics = [
-    {
-      label: "Total de Clientes",
-      value: totalClients.toLocaleString("pt-BR"),
-      hint: "clientes cadastrados",
-      icon: Users,
-    },
-    {
-      label: "Integrações Ativas",
-      value: "3",
-      hint: "conectadas",
-      icon: Plug,
-    },
-    {
-      label: "Cliques no mês",
-      value: "1.248",
-      hint: "+12% vs. mês anterior",
-      icon: MousePointerClick,
-    },
-    {
-      label: "Conversões",
-      value: "86",
-      hint: "este mês",
-      icon: TrendingUp,
-    },
-  ];
+  let ga4Report = null;
+  let ga4Error: string | null = null;
+
+  if (membership) {
+    const connection = await getCompanyGa4Connection(membership.company.id);
+    if (connection?.propertyId) {
+      try {
+        ga4Report = await fetchGa4DashboardReport(
+          connection.accessToken,
+          connection.propertyId,
+          range,
+        );
+      } catch (error) {
+        ga4Error =
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar os dados do GA4.";
+      }
+    }
+  }
 
   return (
     <main className="flex-1 p-6">
-      <div className="mx-auto w-full max-w-5xl">
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
-            Visão Geral
-          </h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Resumo da atividade da sua agência.
-          </p>
+      <div className="mx-auto w-full max-w-6xl space-y-8">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
+              Visão Geral
+            </h1>
+            <p className="mt-1 text-sm text-zinc-400">
+              Analytics profissional da sua agência via Google Analytics 4.
+            </p>
+          </div>
+          <Suspense
+            fallback={
+              <div className="h-9 w-48 animate-pulse rounded-full bg-zinc-800" />
+            }
+          >
+            <DashboardDateRange />
+          </Suspense>
         </header>
 
-        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {metrics.map(({ label, value, hint, icon: Icon }) => (
-            <div
-              key={label}
-              className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-400">{label}</span>
-                <Icon className="h-5 w-5 text-zinc-500" aria-hidden="true" />
-              </div>
-              <p className="mt-3 text-3xl font-semibold text-zinc-100">
-                {value}
-              </p>
-              <p className="mt-1 text-xs text-zinc-500">{hint}</p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-zinc-400">Total de Clientes</span>
+              <Users className="h-5 w-5 text-zinc-500" aria-hidden />
             </div>
-          ))}
+            <p className="mt-3 text-3xl font-semibold text-zinc-100">
+              {totalClients.toLocaleString("pt-BR")}
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">clientes cadastrados</p>
+          </div>
+
+          {ga4Report && (
+            <>
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+                <span className="text-sm text-zinc-400">Visitas (GA4)</span>
+                <p className="mt-3 text-3xl font-semibold text-blue-400">
+                  {ga4Report.summary.activeUsers.toLocaleString("pt-BR")}
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">activeUsers</p>
+              </div>
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+                <span className="text-sm text-zinc-400">Sessões engajadas</span>
+                <p className="mt-3 text-3xl font-semibold text-emerald-400">
+                  {ga4Report.summary.engagedSessions.toLocaleString("pt-BR")}
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">engagedSessions</p>
+              </div>
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+                <span className="text-sm text-zinc-400">Eventos</span>
+                <p className="mt-3 text-3xl font-semibold text-violet-400">
+                  {ga4Report.summary.eventCount.toLocaleString("pt-BR")}
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">eventCount</p>
+              </div>
+            </>
+          )}
         </div>
+
+        {ga4Error && (
+          <div
+            role="alert"
+            className="rounded-xl border border-red-900/50 bg-red-950/40 px-4 py-3 text-sm text-red-300"
+          >
+            {ga4Error}
+          </div>
+        )}
+
+        {!ga4Report && !ga4Error && (
+          <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/40 px-6 py-12 text-center">
+            <p className="text-sm font-medium text-zinc-300">
+              Conecte o GA4 e selecione uma propriedade
+            </p>
+            <p className="mt-2 text-xs text-zinc-500">
+              Vá em Configurações → Integração GA4 para escolher a propriedade
+              monitorada neste dashboard.
+            </p>
+          </div>
+        )}
+
+        {ga4Report && <Ga4DashboardCharts report={ga4Report} />}
       </div>
     </main>
   );

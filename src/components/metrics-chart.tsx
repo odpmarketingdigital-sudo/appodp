@@ -50,6 +50,11 @@ const METRICS: {
  */
 const METRIC_LABEL_OVERRIDES: Record<string, Partial<Record<MetricKey, string>>> =
   {
+    GA4: {
+      impressions: "Visitas",
+      clicks: "Sessões engajadas",
+      conversions: "Eventos",
+    },
     RD_STATION: {
       impressions: "Visitas",
       clicks: "Leads",

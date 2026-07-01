@@ -5,6 +5,8 @@ import { CompanyRole } from "@/app/generated/prisma";
 import { auth } from "@/auth";
 import { BillingPlans } from "@/components/billing-plans";
 import { CompanyForm } from "@/components/company-form";
+import { Ga4PropertySelector } from "@/components/ga4-property-selector";
+import { companyHasGa4Token } from "@/lib/company-ga4";
 import { prisma } from "@/lib/prisma";
 import { subscriptionStatusLabel, TRIAL_PERIOD_DAYS } from "@/lib/plans";
 import { getCompanyPlan, isActiveStatus } from "@/lib/subscription";
@@ -67,6 +69,10 @@ export default async function SettingsPage({
 
   const isSubscribed = isActiveStatus(subscription?.status);
 
+  const hasGa4Token = membership
+    ? await companyHasGa4Token(membership.company.id)
+    : false;
+
   return (
     <main className="flex-1 p-6">
       <div className="mx-auto w-full max-w-2xl">
@@ -115,6 +121,22 @@ export default async function SettingsPage({
               Nenhuma empresa encontrada para o seu usuário.
             </p>
           )}
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-black/5 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            Integração Google Analytics 4
+          </h2>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            Selecione qual propriedade GA4 será monitorada no dashboard da
+            agência.
+          </p>
+          <div className="mt-4">
+            <Ga4PropertySelector
+              hasGa4Token={hasGa4Token}
+              currentPropertyId={membership?.company.ga4PropertyId ?? null}
+            />
+          </div>
         </section>
 
         <section className="mt-6 rounded-2xl border border-black/5 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">

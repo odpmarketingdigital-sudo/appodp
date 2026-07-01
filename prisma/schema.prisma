@@ -117,12 +117,14 @@ model VerificationToken {
 
 /// Empresas (agências)
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  /// Propriedade GA4 monitorada no dashboard da agência (ex.: "123456789")
+  ga4PropertyId  String?  @map("ga4_property_id")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   members      CompanyMember[]
   clients      Client[]

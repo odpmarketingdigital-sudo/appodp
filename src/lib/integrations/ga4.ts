@@ -4,16 +4,14 @@ import {
   type FetchReportParams,
   type IntegrationCredentials,
 } from "@/lib/integrations/base";
+import { fetchGa4DashboardReport } from "@/lib/integrations/ga4-api";
+import { getValidGoogleAccessToken } from "@/lib/integrations/google-token";
 import {
   buildSimulatedReport,
   type SimulationProfile,
 } from "@/lib/integrations/simulator";
 import type { IntegrationResult, MarketingReport } from "@/types/integrations";
 
-/**
- * Perfil de tráfego típico do GA4: volume moderado, CTR de 3% a 6% e CPC
- * relativamente baixo. Menos acessos nos fins de semana.
- */
 const GA4_PROFILE: SimulationProfile = {
   salt: "ga4",
   impressions: { min: 1200, span: 1800 },
@@ -26,10 +24,7 @@ const GA4_PROFILE: SimulationProfile = {
 
 /**
  * Integração com o Google Analytics 4.
- *
- * O `fetchReport` gera uma série temporal diária fictícia, porém realista,
- * simulando a Data API do GA4. Os dados são determinísticos em função das
- * credenciais + data, então não mudam a cada coleta.
+ * Usa a Data API real quando há token e propertyId; caso contrário, simula.
  */
 export class GA4Integration extends BaseIntegration {
   readonly provider = IntegrationProvider.GA4;
@@ -60,7 +55,72 @@ export class GA4Integration extends BaseIntegration {
       return auth;
     }
 
-    // Semente estável por conta para manter a série consistente entre coletas.
+    const propertyId = this.credentials.externalAccountId?.replace(
+      /^properties\//,
+      "",
+    );
+
+    if (propertyId) {
+      const accessToken = await getValidGoogleAccessToken({
+        accessToken: this.credentials.accessToken,
+        refreshToken: this.credentials.refreshToken,
+        expiresAt: this.credentials.expiresAt,
+      });
+
+      if (accessToken) {
+        try {
+          const dashboard = await fetchGa4DashboardReport(
+            accessToken,
+            propertyId,
+            params.range,
+          );
+
+          const series = dashboard.timeline.map((point) => ({
+            date: point.date,
+            impressions: point.activeUsers,
+            clicks: point.engagedSessions,
+            cost: 0,
+            conversions: point.eventCount,
+            revenue: 0,
+          }));
+
+          const totals = series.reduce(
+            (acc, day) => ({
+              impressions: acc.impressions + day.impressions,
+              clicks: acc.clicks + day.clicks,
+              cost: 0,
+              conversions: acc.conversions + day.conversions,
+              revenue: 0,
+            }),
+            { impressions: 0, clicks: 0, cost: 0, conversions: 0, revenue: 0 },
+          );
+
+          return {
+            ok: true,
+            data: {
+              provider: this.provider,
+              range: params.range,
+              currency: "BRL",
+              totals,
+              series,
+              fetchedAt: dashboard.fetchedAt,
+            },
+          };
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "Erro na API do GA4.";
+          return {
+            ok: false,
+            error: {
+              code: "PROVIDER_ERROR",
+              message,
+              retryable: true,
+            },
+          };
+        }
+      }
+    }
+
     const seedBase =
       this.credentials.externalAccountId ??
       this.credentials.accessToken ??
