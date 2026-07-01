@@ -5,7 +5,9 @@ import { randomBytes } from "crypto";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { PRODUCTION_APP_URL } from "@/lib/emails/password-reset";
 import { prisma } from "@/lib/prisma";
+import { sendPasswordResetEmail } from "@/lib/resend";
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora
 
@@ -40,8 +42,13 @@ const resetSchema = z
     path: ["confirmPassword"],
   });
 
-function getAppBaseUrl(): string {
-  return process.env.AUTH_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
+function getPasswordResetUrl(token: string): string {
+  const base =
+    process.env.NODE_ENV === "production"
+      ? PRODUCTION_APP_URL
+      : (process.env.AUTH_URL?.replace(/\/$/, "") ?? "http://localhost:3000");
+
+  return `${base}/reset-password?token=${token}`;
 }
 
 /**
@@ -88,22 +95,29 @@ export async function requestPasswordResetAction(
       data: { email, token, expires },
     });
 
-    const resetUrl = `${getAppBaseUrl()}/reset-password?token=${token}`;
+    const resetUrl = getPasswordResetUrl(token);
 
-    if (process.env.NODE_ENV === "development") {
-      console.info(`[password-reset] Link de redefinição: ${resetUrl}`);
-      return {
-        status: "success",
-        message:
-          "Se o e-mail estiver cadastrado, você receberá instruções em breve.",
-        devResetUrl: resetUrl,
-      };
+    const sendResult = await sendPasswordResetEmail({
+      to: email,
+      resetUrl,
+    });
+
+    if (!sendResult.ok) {
+      console.error(
+        `[password-reset] Falha ao enviar e-mail para ${email}:`,
+        sendResult.error,
+      );
+
+      // Em desenvolvimento, expõe o link para testes locais sem quebrar a UI.
+      if (process.env.NODE_ENV === "development") {
+        return {
+          status: "success",
+          message:
+            "Se o e-mail estiver cadastrado, você receberá instruções em breve.",
+          devResetUrl: resetUrl,
+        };
+      }
     }
-
-    // TODO: integrar serviço de e-mail (Resend, etc.) em produção.
-    console.info(
-      `[password-reset] Token gerado para ${email} (envio de e-mail pendente).`,
-    );
   }
 
   return {
