@@ -44,6 +44,8 @@ model User {
   image         String?
   /// Hash bcrypt para login por e-mail/senha (null = apenas OAuth ou convite pendente)
   passwordHash  String?   @map("password_hash")
+  /// Administrador global do sistema (God Mode)
+  isSystemAdmin Boolean   @default(false) @map("is_system_admin")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
@@ -52,6 +54,18 @@ model User {
   memberships CompanyMember[]
 
   @@map("users")
+}
+
+/// Token temporário para redefinição de senha
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("password_reset_tokens")
 }
 
 /// Contas OAuth vinculadas ao usuário (ex.: Google)

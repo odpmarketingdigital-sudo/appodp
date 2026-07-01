@@ -50,12 +50,20 @@ export function CredentialsLoginForm() {
         </div>
 
         <div className="space-y-1.5">
-          <label
-            htmlFor="password"
-            className="block text-sm font-medium text-zinc-300"
-          >
-            Senha
-          </label>
+          <div className="flex items-center justify-between">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-zinc-300"
+            >
+              Senha
+            </label>
+            <Link
+              href="/forgot-password"
+              className="text-xs text-zinc-400 underline underline-offset-2 hover:text-zinc-200"
+            >
+              Esqueceu a senha?
+            </Link>
+          </div>
           <input
             id="password"
             name="password"

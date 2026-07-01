@@ -18,6 +18,7 @@ export default async function LoginPage({
   }
 
   const registered = firstParam((await searchParams).registered);
+  const reset = firstParam((await searchParams).reset);
 
   return (
     <main className="flex min-h-screen flex-1 items-center justify-center bg-zinc-950 px-6">
@@ -30,6 +31,15 @@ export default async function LoginPage({
             Entre com seu e-mail ou continue com o Google.
           </p>
         </header>
+
+        {reset === "1" && (
+          <div
+            role="status"
+            className="mb-6 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300"
+          >
+            Senha redefinida com sucesso! Faça login com sua nova senha.
+          </div>
+        )}
 
         {registered === "1" && (
           <div

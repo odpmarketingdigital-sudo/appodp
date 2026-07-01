@@ -7,7 +7,7 @@ import type { NextRequest } from "next/server";
 // A verificação real de autenticação/autorização deve ocorrer nos Server
 // Components / Server Actions usando `auth()`.
 
-const PROTECTED_PREFIXES = ["/dashboard"];
+const PROTECTED_PREFIXES = ["/dashboard", "/admin"];
 
 const SESSION_COOKIES = [
   "authjs.session-token",
