@@ -28,8 +28,7 @@ export default function proxy(req: NextRequest) {
   const hasSession = SESSION_COOKIES.some((name) => req.cookies.has(name));
 
   if (!hasSession) {
-    // Redireciona usuários não autenticados para a tela de login (raiz).
-    return NextResponse.redirect(new URL("/", req.nextUrl));
+    return NextResponse.redirect(new URL("/login", req.nextUrl));
   }
 
   return NextResponse.next();

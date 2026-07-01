@@ -42,6 +42,8 @@ model User {
   email         String?   @unique
   emailVerified DateTime? @map("email_verified")
   image         String?
+  /// Hash bcrypt para login por e-mail/senha (null = apenas OAuth ou convite pendente)
+  passwordHash  String?   @map("password_hash")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
