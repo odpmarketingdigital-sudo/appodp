@@ -1,54 +1,73 @@
 import { prisma } from "@/lib/prisma";
+import {
+  resolveClientLimit,
+  type StripePlan,
+} from "@/lib/plans";
 
-/** Quantidade máxima de clientes ativos no plano gratuito. */
-export const FREE_PLAN_CLIENT_LIMIT = 1;
-
-/** Status que liberam recursos premium (assinatura paga e em dia). */
+/** Status que liberam recursos pagos (assinatura ativa ou em testes). */
 export function isActiveStatus(status: string | null | undefined): boolean {
-  return status === "active";
+  return status === "active" || status === "trialing";
 }
 
-/** Plano atual de uma empresa, derivado do status da assinatura. */
+export type CompanyPlanInfo = {
+  isSubscribed: boolean;
+  status: string;
+  plan: StripePlan | null;
+  planName: string;
+  clientLimit: number;
+};
+
+/** Plano atual de uma empresa, derivado da assinatura Stripe. */
 export async function getCompanyPlan(
   companyId: string,
-): Promise<{ isPremium: boolean; status: string }> {
+): Promise<CompanyPlanInfo> {
   const subscription = await prisma.subscription.findUnique({
     where: { companyId },
-    select: { status: true },
+    select: { status: true, stripePriceId: true },
   });
+
   const status = subscription?.status ?? "free";
-  return { isPremium: isActiveStatus(status), status };
+  const { limit, plan, isSubscribed } = resolveClientLimit(
+    status,
+    subscription?.stripePriceId,
+  );
+
+  return {
+    isSubscribed,
+    status,
+    plan,
+    planName: plan?.name ?? "Gratuito",
+    clientLimit: limit,
+  };
 }
 
 export type ClientLimitState = {
-  isPremium: boolean;
+  isSubscribed: boolean;
+  planName: string;
   count: number;
-  /** Limite de clientes; `null` significa ilimitado (Premium). */
-  limit: number | null;
+  limit: number;
   atLimit: boolean;
 };
 
 /**
- * Estado do limite de clientes da empresa. No plano gratuito conta os clientes
- * ativos e compara com `FREE_PLAN_CLIENT_LIMIT`; no Premium é ilimitado.
+ * Estado do limite de clientes da empresa conforme o plano ativo
+ * (Gratuito: 1 | Basic: 3 | Standart: 5 | Pro: 10).
  */
 export async function getClientLimitState(
   companyId: string,
 ): Promise<ClientLimitState> {
-  const { isPremium } = await getCompanyPlan(companyId);
-
-  if (isPremium) {
-    return { isPremium: true, count: 0, limit: null, atLimit: false };
-  }
+  const { isSubscribed, planName, clientLimit } =
+    await getCompanyPlan(companyId);
 
   const count = await prisma.client.count({
     where: { companyId, isActive: true },
   });
 
   return {
-    isPremium: false,
+    isSubscribed,
+    planName,
     count,
-    limit: FREE_PLAN_CLIENT_LIMIT,
-    atLimit: count >= FREE_PLAN_CLIENT_LIMIT,
+    limit: clientLimit,
+    atLimit: count >= clientLimit,
   };
 }

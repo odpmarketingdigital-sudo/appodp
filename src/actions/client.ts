@@ -80,7 +80,7 @@ export async function createClientAction(
   if (limitState.atLimit) {
     return {
       status: "error",
-      message: `Limite de ${limitState.limit} cliente atingido no plano gratuito. Faça upgrade para o Premium para adicionar mais.`,
+      message: `Limite de ${limitState.limit} cliente${limitState.limit === 1 ? "" : "s"} atingido no plano ${limitState.planName}. Faça upgrade em Configurações para adicionar mais.`,
     };
   }
 

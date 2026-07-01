@@ -38,7 +38,7 @@ export default async function ClientsPage() {
             {atLimit ? (
               <span
                 aria-disabled
-                title="Limite do plano gratuito atingido"
+                title="Limite do plano atingido"
                 className="inline-flex cursor-not-allowed items-center justify-center rounded-full bg-zinc-300 px-4 py-2 text-sm font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500"
               >
                 Novo cliente
@@ -56,13 +56,14 @@ export default async function ClientsPage() {
 
         {atLimit && (
           <div className="mb-6 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm text-violet-300">
-            Você atingiu o limite de {limitState?.limit} cliente do plano
-            gratuito.{" "}
+            Você atingiu o limite de {limitState?.limit} cliente
+            {limitState?.limit === 1 ? "" : "s"} do plano{" "}
+            {limitState?.planName}.{" "}
             <Link
               href="/dashboard/settings"
               className="font-semibold underline underline-offset-2 hover:text-violet-200"
             >
-              Fazer upgrade para o Premium
+              Ver planos disponíveis
             </Link>{" "}
             para adicionar mais clientes.
           </div>

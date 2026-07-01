@@ -3,9 +3,11 @@ import { redirect } from "next/navigation";
 
 import { CompanyRole } from "@/app/generated/prisma";
 import { auth } from "@/auth";
+import { BillingPlans } from "@/components/billing-plans";
 import { CompanyForm } from "@/components/company-form";
-import { UpgradeButton } from "@/components/upgrade-button";
 import { prisma } from "@/lib/prisma";
+import { subscriptionStatusLabel, TRIAL_PERIOD_DAYS } from "@/lib/plans";
+import { getCompanyPlan, isActiveStatus } from "@/lib/subscription";
 
 function firstParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -24,14 +26,12 @@ export default async function SettingsPage({
 
   const checkout = firstParam((await searchParams).checkout);
 
-  // Empresa atual do usuário (primeira pela ordem de criação).
   const membership = await prisma.companyMember.findFirst({
     where: { userId: session.user.id },
     orderBy: { createdAt: "asc" },
     include: { company: true },
   });
 
-  // Área financeira: membros comuns (MEMBER) não têm acesso.
   if (membership?.role === CompanyRole.MEMBER) {
     return (
       <main className="flex-1 p-6">
@@ -61,7 +61,11 @@ export default async function SettingsPage({
       })
     : null;
 
-  const isPremium = subscription?.status === "active";
+  const companyPlan = membership
+    ? await getCompanyPlan(membership.company.id)
+    : null;
+
+  const isSubscribed = isActiveStatus(subscription?.status);
 
   return (
     <main className="flex-1 p-6">
@@ -80,7 +84,7 @@ export default async function SettingsPage({
             role="status"
             className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300"
           >
-            <p className="font-medium">Pagamento confirmado!</p>
+            <p className="font-medium">Checkout concluído!</p>
             <p className="mt-0.5 text-emerald-300/90">
               Seu plano será atualizado em instantes assim que o Stripe
               confirmar a assinatura.
@@ -114,38 +118,48 @@ export default async function SettingsPage({
         </section>
 
         <section className="mt-6 rounded-2xl border border-black/5 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-                Plano e faturamento
-              </h2>
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                Plano atual:{" "}
-                <span
-                  className={
-                    isPremium
-                      ? "font-semibold text-violet-500 dark:text-violet-400"
-                      : "font-semibold text-zinc-700 dark:text-zinc-200"
-                  }
-                >
-                  {isPremium ? "Premium" : "Gratuito"}
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+              Plano e faturamento
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Plano atual:{" "}
+              <span
+                className={
+                  isSubscribed
+                    ? "font-semibold text-violet-500 dark:text-violet-400"
+                    : "font-semibold text-zinc-700 dark:text-zinc-200"
+                }
+              >
+                {companyPlan?.planName ?? "Gratuito"}
+              </span>
+              {subscription?.status && isSubscribed && (
+                <span className="ml-2 text-xs text-zinc-500">
+                  ({subscriptionStatusLabel(subscription.status)})
                 </span>
-              </p>
-              {isPremium && subscription?.currentPeriodEnd && (
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                  Renova em{" "}
-                  {subscription.currentPeriodEnd.toLocaleDateString("pt-BR")}
-                </p>
               )}
-            </div>
-
-            {!isPremium && <UpgradeButton />}
+            </p>
+            {isSubscribed && companyPlan && (
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                Limite: até {companyPlan.clientLimit} clientes
+                {subscription?.status === "trialing" &&
+                  ` · ${TRIAL_PERIOD_DAYS} dias grátis`}
+              </p>
+            )}
+            {isSubscribed && subscription?.currentPeriodEnd && (
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                {subscription.status === "trialing" ? "Teste termina em" : "Renova em"}{" "}
+                {subscription.currentPeriodEnd.toLocaleDateString("pt-BR")}
+              </p>
+            )}
           </div>
 
-          {!isPremium && (
+          {!isSubscribed && <BillingPlans />}
+
+          {!isSubscribed && (
             <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
-              Desbloqueie sincronização ilimitada e recursos avançados com o
-              plano Premium.
+              Escolha o plano ideal para sua agência e desbloqueie sincronização
+              automática e mais clientes.
             </p>
           )}
         </section>

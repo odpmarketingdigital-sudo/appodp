@@ -10,8 +10,9 @@ export const dynamic = "force-dynamic";
 function mapStatus(status: Stripe.Subscription.Status): string {
   switch (status) {
     case "active":
-    case "trialing":
       return "active";
+    case "trialing":
+      return "trialing";
     case "past_due":
       return "past_due";
     case "canceled":
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest): Promise<Response> {
             data: {
               stripeSubscriptionId: subscription.id,
               stripePriceId: subscription.items.data[0]?.price.id ?? null,
-              status: "active",
+              status: mapStatus(subscription.status),
               currentPeriodEnd: periodEndFromSubscription(subscription),
             },
           });

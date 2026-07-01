@@ -1,15 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
 
 import { auth } from "@/auth";
 import { getCurrentMembership } from "@/lib/company";
+import { isValidPlanPriceId, TRIAL_PERIOD_DAYS } from "@/lib/plans";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
+const checkoutBodySchema = z.object({
+  priceId: z.string().min(1, "priceId é obrigatório."),
+});
+
 /**
- * Cria uma sessão de Checkout do Stripe (assinatura Premium) para a empresa do
- * usuário autenticado e retorna a URL para redirecionamento.
+ * Cria uma sessão de Checkout do Stripe para o plano selecionado,
+ * com 7 dias de teste gratuito, e retorna a URL para redirecionamento.
  */
 export async function POST(request: NextRequest): Promise<Response> {
   const session = await auth();
@@ -17,11 +23,29 @@ export async function POST(request: NextRequest): Promise<Response> {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
-  const priceId = process.env.STRIPE_PREMIUM_PRICE_ID;
-  if (!priceId) {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
     return NextResponse.json(
-      { error: "STRIPE_PREMIUM_PRICE_ID não configurado no ambiente." },
-      { status: 500 },
+      { error: "Corpo da requisição inválido." },
+      { status: 400 },
+    );
+  }
+
+  const parsed = checkoutBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Informe um priceId válido." },
+      { status: 400 },
+    );
+  }
+
+  const { priceId } = parsed.data;
+  if (!isValidPlanPriceId(priceId)) {
+    return NextResponse.json(
+      { error: "Plano selecionado não é válido." },
+      { status: 400 },
     );
   }
 
@@ -36,7 +60,6 @@ export async function POST(request: NextRequest): Promise<Response> {
   const company = membership.company;
   const stripe = getStripe();
 
-  // Garante um Customer do Stripe vinculado à empresa (reaproveita se existir).
   const existing = await prisma.subscription.findUnique({
     where: { companyId: company.id },
   });
@@ -69,8 +92,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${origin}/dashboard/settings?checkout=success`,
     cancel_url: `${origin}/dashboard/settings?checkout=cancel`,
-    metadata: { companyId: company.id },
-    subscription_data: { metadata: { companyId: company.id } },
+    metadata: { companyId: company.id, priceId },
+    subscription_data: {
+      trial_period_days: TRIAL_PERIOD_DAYS,
+      metadata: { companyId: company.id },
+    },
   });
 
   return NextResponse.json({ url: checkoutSession.url });

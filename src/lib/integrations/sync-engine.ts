@@ -65,7 +65,9 @@ export async function runGlobalSync(): Promise<GlobalSyncReport> {
     where: {
       isActive: true,
       provider: { in: [...SYNCABLE_PROVIDERS] },
-      client: { company: { subscription: { status: "active" } } },
+      client: {
+        company: { subscription: { status: { in: ["active", "trialing"] } } },
+      },
     },
   });
 
