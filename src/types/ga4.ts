@@ -34,6 +34,5 @@ export type GA4DashboardReport = {
   timeline: GA4TimelinePoint[];
   cities: GA4BreakdownRow[];
   channels: GA4BreakdownRow[];
-  ageBrackets: GA4BreakdownRow[];
   fetchedAt: string;
 };

@@ -3,15 +3,19 @@ import { notFound, redirect } from "next/navigation";
 import { IntegrationProvider } from "@/app/generated/prisma";
 import { auth } from "@/auth";
 import { BlendedSummary } from "@/components/blended-summary";
+import { ClientAnalyticsTabs } from "@/components/client-analytics-tabs";
 import { IntegrationCard } from "@/components/integration-card";
 import {
-  MetricsChart,
   type MetricChannel,
   type MetricPoint,
 } from "@/components/metrics-chart";
-import { SyncMetricsButton } from "@/components/sync-metrics-button";
 import { getCurrentMembership } from "@/lib/company";
+import { resolveDateRangePreset } from "@/lib/date-ranges";
+import { fetchGa4DashboardReport } from "@/lib/integrations/ga4-api";
+import { getValidGoogleAccessToken } from "@/lib/integrations/google-token";
 import { prisma } from "@/lib/prisma";
+
+import type { GA4DashboardReport } from "@/types/ga4";
 
 /** Provedores com coleta de métricas habilitada (integração real). */
 const CHART_PROVIDERS = [
@@ -91,7 +95,6 @@ export default async function ClientDetailPage({
     redirect("/dashboard/clients");
   }
 
-  // Isolamento multi-tenant: só carrega o cliente se for da empresa do usuário.
   const client = await prisma.client.findFirst({
     where: { id, companyId: membership.company.id },
     include: { integrationTokens: true },
@@ -105,7 +108,38 @@ export default async function ClientDetailPage({
     client.integrationTokens.map((token) => [token.provider, token]),
   );
 
-  // Histórico de todos os provedores com gráfico, agrupado por provedor.
+  const ga4Token = tokensByProvider.get(IntegrationProvider.GA4);
+  const metaToken = tokensByProvider.get(IntegrationProvider.META_ADS);
+  const ga4Connected = Boolean(ga4Token?.isActive);
+  const metaConnected = Boolean(metaToken?.isActive);
+
+  let ga4Report: GA4DashboardReport | null = null;
+  let ga4Error: string | null = null;
+
+  const propertyId = ga4Token?.externalAccountId?.replace(/^properties\//, "");
+  if (ga4Connected && propertyId && ga4Token) {
+    const accessToken = await getValidGoogleAccessToken({
+      accessToken: ga4Token.accessToken,
+      refreshToken: ga4Token.refreshToken,
+      expiresAt: ga4Token.expiresAt,
+    });
+
+    if (accessToken) {
+      try {
+        ga4Report = await fetchGa4DashboardReport(
+          accessToken,
+          propertyId,
+          resolveDateRangePreset("last30"),
+        );
+      } catch (error) {
+        ga4Error =
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar os dados do GA4.";
+      }
+    }
+  }
+
   const metricHistory = await prisma.marketingMetricHistory.findMany({
     where: {
       clientId: client.id,
@@ -143,7 +177,7 @@ export default async function ClientDetailPage({
             {client.name}
           </h1>
           <p className="mt-1 text-sm text-zinc-400">
-            {client.email ?? "Sem e-mail"} · Integrações de marketing
+            {client.email ?? "Sem e-mail"} · Visão detalhada por canal
           </p>
         </header>
 
@@ -175,28 +209,13 @@ export default async function ClientDetailPage({
 
         <BlendedSummary channels={channels} />
 
-        <section className="mb-10">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-zinc-100">Desempenho</h2>
-              <p className="text-sm text-zinc-400">
-                Série diária dos últimos 30 dias por canal.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-start gap-2">
-              {CHART_PROVIDERS.map(({ provider, label }) => (
-                <SyncMetricsButton
-                  key={provider}
-                  clientId={client.id}
-                  provider={provider}
-                  label={label}
-                  disabled={!tokensByProvider.get(provider)?.isActive}
-                />
-              ))}
-            </div>
-          </div>
-          <MetricsChart channels={channels} />
-        </section>
+        <ClientAnalyticsTabs
+          clientId={client.id}
+          ga4Connected={ga4Connected}
+          metaConnected={metaConnected}
+          ga4Report={ga4Report}
+          ga4Error={ga4Error}
+        />
 
         <section>
           <h2 className="mb-4 text-lg font-semibold text-zinc-100">
@@ -209,8 +228,6 @@ export default async function ClientDetailPage({
               const externalAccountId = token?.externalAccountId ?? null;
               return (
                 <IntegrationCard
-                  // Remonta o card quando o estado de conexão muda (após salvar),
-                  // fechando o formulário e reiniciando o estado da action.
                   key={`${provider}-${connected}-${externalAccountId ?? ""}`}
                   clientId={client.id}
                   provider={provider}

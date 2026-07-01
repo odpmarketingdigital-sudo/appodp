@@ -135,7 +135,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           </div>
         )}
 
-        {ga4Report && <Ga4DashboardCharts report={ga4Report} />}
+        {ga4Report && <Ga4DashboardCharts report={ga4Report} variant="agency" />}
       </div>
     </main>
   );

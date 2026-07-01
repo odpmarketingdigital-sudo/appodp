@@ -151,11 +151,10 @@ export async function fetchGa4DashboardReport(
 ): Promise<GA4DashboardReport> {
   const normalizedId = normalizePropertyId(propertyId);
 
-  const [timelineRes, citiesRes, channelsRes, ageRes] = await Promise.all([
+  const [timelineRes, citiesRes, channelsRes] = await Promise.all([
     runGa4Report(accessToken, normalizedId, range, ["date"], 366),
     runGa4Report(accessToken, normalizedId, range, ["city"], 10),
     runGa4Report(accessToken, normalizedId, range, ["sessionSourceMedium"], 10),
-    runGa4Report(accessToken, normalizedId, range, ["userAgeBracket"], 10),
   ]);
 
   const timeline: GA4TimelinePoint[] = (timelineRes.rows ?? [])
@@ -197,7 +196,6 @@ export async function fetchGa4DashboardReport(
     timeline,
     cities: mapBreakdown(citiesRes.rows ?? []),
     channels: mapBreakdown(channelsRes.rows ?? []),
-    ageBrackets: mapBreakdown(ageRes.rows ?? []),
     fetchedAt: new Date().toISOString(),
   };
 }
