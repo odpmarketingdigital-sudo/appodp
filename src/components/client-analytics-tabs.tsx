@@ -5,8 +5,6 @@ import { BarChart3, Megaphone, Users } from "lucide-react";
 
 import { Ga4DashboardCharts } from "@/components/ga4-dashboard-charts";
 import { IntegrationEmptyState } from "@/components/integration-empty-state";
-import { SyncMetricsButton } from "@/components/sync-metrics-button";
-import { IntegrationProvider } from "@/app/generated/prisma";
 import type { GA4DashboardReport } from "@/types/ga4";
 
 const TABS = [
@@ -18,7 +16,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 type ClientAnalyticsTabsProps = {
-  clientId: string;
+  integrationsHref: string;
   ga4Connected: boolean;
   metaConnected: boolean;
   ga4Report: GA4DashboardReport | null;
@@ -26,7 +24,7 @@ type ClientAnalyticsTabsProps = {
 };
 
 export function ClientAnalyticsTabs({
-  clientId,
+  integrationsHref,
   ga4Connected,
   metaConnected,
   ga4Report,
@@ -35,23 +33,12 @@ export function ClientAnalyticsTabs({
   const [activeTab, setActiveTab] = useState<TabId>("ga4");
 
   return (
-    <section className="mb-10">
-      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-zinc-100">Analytics</h2>
-          <p className="text-sm text-zinc-400">
-            Visão detalhada por canal de aquisição.
-          </p>
-        </div>
-
-        {activeTab === "ga4" && (
-          <SyncMetricsButton
-            clientId={clientId}
-            provider={IntegrationProvider.GA4}
-            label="GA4"
-            disabled={!ga4Connected}
-          />
-        )}
+    <section>
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-zinc-100">Analytics</h2>
+        <p className="text-sm text-zinc-400">
+          Visão detalhada por canal de aquisição.
+        </p>
       </div>
 
       <div className="mb-6 inline-flex flex-wrap gap-1 rounded-full border border-zinc-800 bg-zinc-950 p-1">
@@ -81,8 +68,9 @@ export function ClientAnalyticsTabs({
             <IntegrationEmptyState
               icon={BarChart3}
               title="GA4 não conectado"
-              description="Conecte o Google Analytics 4 na seção de integrações abaixo para visualizar tráfego, canais e cidades deste cliente."
-              actionLabel="Conecte na seção Integrações"
+              description="Configure o Google Analytics 4 na página de integrações deste cliente para visualizar tráfego, canais e cidades."
+              actionLabel="Configurar Integrações"
+              actionHref={integrationsHref}
             />
           )}
 
@@ -99,7 +87,9 @@ export function ClientAnalyticsTabs({
             <IntegrationEmptyState
               icon={BarChart3}
               title="Aguardando dados do GA4"
-              description="Configure o ID da propriedade GA4 na integração e sincronize para carregar os gráficos."
+              description="Selecione a propriedade GA4 na página de integrações para carregar os gráficos deste cliente."
+              actionLabel="Configurar Integrações"
+              actionHref={integrationsHref}
             />
           )}
 
@@ -116,9 +106,10 @@ export function ClientAnalyticsTabs({
           description={
             metaConnected
               ? "A conta está conectada. Os gráficos detalhados de campanhas, alcance e custo serão exibidos aqui em uma próxima atualização."
-              : "Conecte o Meta Ads na seção de integrações para preparar este painel com métricas de Facebook e Instagram."
+              : "Conecte o Meta Ads na página de integrações para preparar este painel com métricas de Facebook e Instagram."
           }
-          actionLabel={metaConnected ? "Integração futura" : "Conecte na seção Integrações"}
+          actionLabel="Configurar Integrações"
+          actionHref={integrationsHref}
         />
       )}
 

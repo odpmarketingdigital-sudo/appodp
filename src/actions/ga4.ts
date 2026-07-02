@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { auth } from "@/auth";
 import { getCurrentMembership } from "@/lib/company";
-import { getCompanyGa4Connection } from "@/lib/company-ga4";
+import { getClientGa4Connection } from "@/lib/client-ga4";
 import { listGa4Properties } from "@/lib/integrations/ga4-api";
 import { prisma } from "@/lib/prisma";
 
@@ -19,10 +19,11 @@ export type Ga4PropertyFormState = {
 };
 
 const savePropertySchema = z.object({
+  clientId: z.string().min(1, "Cliente inválido."),
   propertyId: z.string().min(1, "Selecione uma propriedade."),
 });
 
-async function requireAdminMembership() {
+async function requireClientAccess(clientId: string) {
   const session = await auth();
   if (!session?.user?.id) {
     return { error: "Sessão expirada." as const };
@@ -33,24 +34,38 @@ async function requireAdminMembership() {
     return { error: "Nenhuma empresa associada." as const };
   }
 
-  return { membership };
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, companyId: membership.company.id },
+    select: { id: true },
+  });
+
+  if (!client) {
+    return { error: "Cliente não encontrado." as const };
+  }
+
+  return { membership, clientId: client.id };
 }
 
 /**
- * Lista propriedades GA4 disponíveis na conta Google conectada à agência.
+ * Lista propriedades GA4 disponíveis na conta Google conectada ao cliente.
  */
-export async function listGa4PropertiesAction(): Promise<Ga4PropertyFormState> {
-  const ctx = await requireAdminMembership();
+export async function listGa4PropertiesAction(
+  clientId: string,
+): Promise<Ga4PropertyFormState> {
+  const ctx = await requireClientAccess(clientId);
   if ("error" in ctx) {
     return { status: "error", message: ctx.error };
   }
 
-  const connection = await getCompanyGa4Connection(ctx.membership.company.id);
+  const connection = await getClientGa4Connection(
+    ctx.clientId,
+    ctx.membership.company.id,
+  );
   if (!connection) {
     return {
       status: "error",
       message:
-        "Nenhuma conta GA4 conectada. Conecte o GA4 em um cliente primeiro.",
+        "Nenhuma conta GA4 conectada. Conecte o Google Analytics 4 abaixo.",
     };
   }
 
@@ -71,17 +86,13 @@ export async function listGa4PropertiesAction(): Promise<Ga4PropertyFormState> {
   }
 }
 
-/** Salva a propriedade GA4 monitorada no dashboard da agência. */
+/** Salva a propriedade GA4 monitorada no registro do cliente. */
 export async function saveGa4PropertyAction(
   _prevState: Ga4PropertyFormState,
   formData: FormData,
 ): Promise<Ga4PropertyFormState> {
-  const ctx = await requireAdminMembership();
-  if ("error" in ctx) {
-    return { status: "error", message: ctx.error };
-  }
-
   const parsed = savePropertySchema.safeParse({
+    clientId: formData.get("clientId"),
     propertyId: formData.get("propertyId"),
   });
 
@@ -93,19 +104,27 @@ export async function saveGa4PropertyAction(
     };
   }
 
-  const connection = await getCompanyGa4Connection(ctx.membership.company.id);
+  const ctx = await requireClientAccess(parsed.data.clientId);
+  if ("error" in ctx) {
+    return { status: "error", message: ctx.error };
+  }
+
+  const connection = await getClientGa4Connection(
+    ctx.clientId,
+    ctx.membership.company.id,
+  );
   if (!connection) {
     return {
       status: "error",
-      message: "Conecte o GA4 em um cliente antes de selecionar a propriedade.",
+      message: "Conecte o GA4 antes de selecionar a propriedade.",
     };
   }
 
   const propertyId = parsed.data.propertyId.replace(/^properties\//, "");
 
   try {
-    await prisma.company.update({
-      where: { id: ctx.membership.company.id },
+    await prisma.client.update({
+      where: { id: ctx.clientId },
       data: { ga4PropertyId: propertyId },
     });
   } catch {
@@ -115,7 +134,9 @@ export async function saveGa4PropertyAction(
     };
   }
 
-  revalidatePath("/dashboard/settings");
+  const base = `/dashboard/clients/${ctx.clientId}`;
+  revalidatePath(base);
+  revalidatePath(`${base}/integrations`);
   revalidatePath("/dashboard");
 
   return {

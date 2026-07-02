@@ -12,11 +12,13 @@ import type { GA4PropertyOption } from "@/types/ga4";
 const initialState: Ga4PropertyFormState = { status: "idle" };
 
 type Ga4PropertySelectorProps = {
+  clientId: string;
   hasGa4Token: boolean;
   currentPropertyId: string | null;
 };
 
 export function Ga4PropertySelector({
+  clientId,
   hasGa4Token,
   currentPropertyId,
 }: Ga4PropertySelectorProps) {
@@ -32,7 +34,7 @@ export function Ga4PropertySelector({
     if (!hasGa4Token) return;
 
     startTransition(async () => {
-      const result = await listGa4PropertiesAction();
+      const result = await listGa4PropertiesAction(clientId);
       if (result.status === "success" && result.properties) {
         setProperties(result.properties);
         setLoadError(null);
@@ -40,13 +42,13 @@ export function Ga4PropertySelector({
         setLoadError(result.message ?? "Erro ao carregar propriedades.");
       }
     });
-  }, [hasGa4Token]);
+  }, [hasGa4Token, clientId]);
 
   if (!hasGa4Token) {
     return (
       <p className="text-sm text-zinc-500">
-        Conecte o GA4 em um cliente para selecionar a propriedade monitorada no
-        dashboard.
+        Conecte o Google Analytics 4 abaixo para selecionar a propriedade
+        monitorada deste cliente.
       </p>
     );
   }
@@ -71,13 +73,18 @@ export function Ga4PropertySelector({
       )}
 
       {!isLoading && properties.length > 0 && (
-        <form action={formAction} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <form
+          action={formAction}
+          className="flex flex-col gap-3 sm:flex-row sm:items-end"
+        >
+          <input type="hidden" name="clientId" value={clientId} />
+
           <div className="flex-1 space-y-1.5">
             <label
               htmlFor="ga4-property"
               className="block text-xs font-medium text-zinc-300"
             >
-              Propriedade GA4 do dashboard
+              Propriedade GA4 deste cliente
             </label>
             <select
               id="ga4-property"

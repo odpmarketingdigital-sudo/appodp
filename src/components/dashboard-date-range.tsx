@@ -8,7 +8,14 @@ import {
   parseDateRangePreset,
 } from "@/lib/date-ranges";
 
-export function DashboardDateRange() {
+type DashboardDateRangeProps = {
+  /** Caminho base da página (sem query string). Padrão: `/dashboard`. */
+  basePath?: string;
+};
+
+export function DashboardDateRange({
+  basePath = "/dashboard",
+}: DashboardDateRangeProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const current = parseDateRangePreset(searchParams.get("period") ?? undefined);
@@ -16,7 +23,7 @@ export function DashboardDateRange() {
   function handleChange(preset: DateRangePreset) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("period", preset);
-    router.push(`/dashboard?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
   }
 
   return (

@@ -67,10 +67,12 @@ export async function GET(request: NextRequest): Promise<Response> {
   const oauthError = params.get("error");
 
   const clientsUrl = new URL("/dashboard/clients", request.url);
+  const integrationsPath = (clientId: string) =>
+    `/dashboard/clients/${clientId}/integrations`;
 
   if (oauthError || !code || !stateParam || !context) {
     const target = context
-      ? new URL(`/dashboard/clients/${context.clientId}`, request.url)
+      ? new URL(integrationsPath(context.clientId), request.url)
       : clientsUrl;
     target.searchParams.set("integration_error", "meta_oauth");
     return redirectAndClear(target);
@@ -78,7 +80,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   // Proteção contra CSRF: o state retornado deve bater com o do cookie.
   if (stateParam !== context.state) {
-    const target = new URL(`/dashboard/clients/${context.clientId}`, request.url);
+    const target = new URL(integrationsPath(context.clientId), request.url);
     target.searchParams.set("integration_error", "state_mismatch");
     return redirectAndClear(target);
   }
@@ -91,7 +93,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   const metaClientId = process.env.META_CLIENT_ID;
   const metaClientSecret = process.env.META_CLIENT_SECRET;
   if (!metaClientId || !metaClientSecret) {
-    const target = new URL(`/dashboard/clients/${context.clientId}`, request.url);
+    const target = new URL(integrationsPath(context.clientId), request.url);
     target.searchParams.set("integration_error", "missing_credentials");
     return redirectAndClear(target);
   }
@@ -111,7 +113,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
 
   const errorUrl = (reason: string): URL => {
-    const target = new URL(`/dashboard/clients/${context.clientId}`, request.url);
+    const target = new URL(integrationsPath(context.clientId), request.url);
     target.searchParams.set("integration_error", reason);
     return target;
   };
@@ -170,7 +172,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     scope: META_SCOPES,
   });
 
-  const successUrl = new URL(`/dashboard/clients/${context.clientId}`, request.url);
+  const successUrl = new URL(integrationsPath(context.clientId), request.url);
   successUrl.searchParams.set("integration", "meta_ads_connected");
   return redirectAndClear(successUrl);
 }

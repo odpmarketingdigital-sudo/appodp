@@ -5,12 +5,11 @@ import { auth } from "@/auth";
 import { DashboardDateRange } from "@/components/dashboard-date-range";
 import { Ga4DashboardCharts } from "@/components/ga4-dashboard-charts";
 import { getCurrentMembership } from "@/lib/company";
-import { getCompanyGa4Connection } from "@/lib/company-ga4";
+import { getCompanyGa4Overview } from "@/lib/company-ga4";
 import {
   parseDateRangePreset,
   resolveDateRangePreset,
 } from "@/lib/date-ranges";
-import { fetchGa4DashboardReport } from "@/lib/integrations/ga4-api";
 import { prisma } from "@/lib/prisma";
 
 type DashboardPageProps = {
@@ -37,20 +36,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   let ga4Error: string | null = null;
 
   if (membership) {
-    const connection = await getCompanyGa4Connection(membership.company.id);
-    if (connection?.propertyId) {
-      try {
-        ga4Report = await fetchGa4DashboardReport(
-          connection.accessToken,
-          connection.propertyId,
-          range,
-        );
-      } catch (error) {
-        ga4Error =
-          error instanceof Error
-            ? error.message
-            : "Não foi possível carregar os dados do GA4.";
-      }
+    try {
+      ga4Report = await getCompanyGa4Overview(membership.company.id, range);
+    } catch (error) {
+      ga4Error =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível carregar os dados do GA4.";
     }
   }
 
@@ -129,8 +121,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               Conecte o GA4 e selecione uma propriedade
             </p>
             <p className="mt-2 text-xs text-zinc-500">
-              Vá em Configurações → Integração GA4 para escolher a propriedade
-              monitorada neste dashboard.
+              Configure o GA4 e selecione a propriedade em cada cliente em
+              Configurar Integrações.
             </p>
           </div>
         )}

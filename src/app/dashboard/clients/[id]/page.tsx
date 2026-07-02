@@ -1,89 +1,43 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { Suspense } from "react";
+import { Settings } from "lucide-react";
 
 import { IntegrationProvider } from "@/app/generated/prisma";
 import { auth } from "@/auth";
 import { BlendedSummary } from "@/components/blended-summary";
 import { ClientAnalyticsTabs } from "@/components/client-analytics-tabs";
-import { IntegrationCard } from "@/components/integration-card";
+import { DashboardDateRange } from "@/components/dashboard-date-range";
 import {
   type MetricChannel,
   type MetricPoint,
 } from "@/components/metrics-chart";
 import { getCurrentMembership } from "@/lib/company";
-import { resolveDateRangePreset } from "@/lib/date-ranges";
+import { getClientGa4Connection } from "@/lib/client-ga4";
+import {
+  parseDateRangePreset,
+  resolveDateRangePreset,
+} from "@/lib/date-ranges";
 import { fetchGa4DashboardReport } from "@/lib/integrations/ga4-api";
-import { getValidGoogleAccessToken } from "@/lib/integrations/google-token";
 import { prisma } from "@/lib/prisma";
 
 import type { GA4DashboardReport } from "@/types/ga4";
 
-/** Provedores com coleta de métricas habilitada (integração real). */
 const CHART_PROVIDERS = [
   { provider: IntegrationProvider.GA4, label: "GA4" },
   { provider: IntegrationProvider.META_ADS, label: "Meta Ads" },
   { provider: IntegrationProvider.RD_STATION, label: "RD Station" },
 ] as const;
 
-const PROVIDERS = [
-  {
-    provider: IntegrationProvider.GA4,
-    label: "Google Analytics 4",
-    description: "Tráfego, eventos e conversões do GA4.",
-  },
-  {
-    provider: IntegrationProvider.GOOGLE_ADS,
-    label: "Google Ads",
-    description: "Campanhas, cliques e custos do Google Ads.",
-  },
-  {
-    provider: IntegrationProvider.META_ADS,
-    label: "Meta Ads",
-    description: "Anúncios do Facebook e Instagram.",
-  },
-  {
-    provider: IntegrationProvider.RD_STATION,
-    label: "RD Station",
-    description: "Automação de marketing e geração de leads.",
-  },
-  {
-    provider: IntegrationProvider.ACTIVECAMPAIGN,
-    label: "ActiveCampaign",
-    description: "E-mail marketing e automações.",
-  },
-] as const;
-
-const INTEGRATION_ERROR_MESSAGES: Record<string, string> = {
-  google_oauth:
-    "Não foi possível concluir a autenticação com o Google. Tente novamente.",
-  meta_oauth:
-    "Não foi possível concluir a autenticação com o Meta. Tente novamente.",
-  state_mismatch:
-    "Falha na validação de segurança do fluxo (state). Por favor, tente conectar novamente.",
-  invalid_provider: "Provedor de integração inválido.",
-  missing_credentials:
-    "As credenciais do Google não estão configuradas no servidor.",
-  token_exchange:
-    "Não foi possível trocar o código de autorização pelo token do Google.",
-  no_access_token: "O Google não retornou um token de acesso válido.",
-  forbidden: "Você não tem permissão para gerenciar este cliente.",
-};
-
-function firstParam(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
 export default async function ClientDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  searchParams: Promise<{ period?: string }>;
 }) {
   const { id } = await params;
   const query = await searchParams;
-
-  const integrationSuccess = firstParam(query.integration);
-  const integrationError = firstParam(query.integration_error);
 
   const session = await auth();
   if (!session?.user?.id) {
@@ -104,6 +58,11 @@ export default async function ClientDetailPage({
     notFound();
   }
 
+  const period = parseDateRangePreset(query.period);
+  const range = resolveDateRangePreset(period);
+  const clientBasePath = `/dashboard/clients/${client.id}`;
+  const integrationsPath = `${clientBasePath}/integrations`;
+
   const tokensByProvider = new Map(
     client.integrationTokens.map((token) => [token.provider, token]),
   );
@@ -116,27 +75,23 @@ export default async function ClientDetailPage({
   let ga4Report: GA4DashboardReport | null = null;
   let ga4Error: string | null = null;
 
-  const propertyId = ga4Token?.externalAccountId?.replace(/^properties\//, "");
-  if (ga4Connected && propertyId && ga4Token) {
-    const accessToken = await getValidGoogleAccessToken({
-      accessToken: ga4Token.accessToken,
-      refreshToken: ga4Token.refreshToken,
-      expiresAt: ga4Token.expiresAt,
-    });
+  const connection = await getClientGa4Connection(
+    client.id,
+    membership.company.id,
+  );
 
-    if (accessToken) {
-      try {
-        ga4Report = await fetchGa4DashboardReport(
-          accessToken,
-          propertyId,
-          resolveDateRangePreset("last30"),
-        );
-      } catch (error) {
-        ga4Error =
-          error instanceof Error
-            ? error.message
-            : "Não foi possível carregar os dados do GA4.";
-      }
+  if (ga4Connected && connection?.propertyId) {
+    try {
+      ga4Report = await fetchGa4DashboardReport(
+        connection.accessToken,
+        connection.propertyId,
+        range,
+      );
+    } catch (error) {
+      ga4Error =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível carregar os dados do GA4.";
     }
   }
 
@@ -172,74 +127,43 @@ export default async function ClientDetailPage({
   return (
     <main className="flex-1 p-6">
       <div className="mx-auto w-full max-w-4xl">
-        <header className="mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
-            {client.name}
-          </h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            {client.email ?? "Sem e-mail"} · Visão detalhada por canal
-          </p>
+        <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
+              {client.name}
+            </h1>
+            <p className="mt-1 text-sm text-zinc-400">
+              {client.email ?? "Sem e-mail"} · Visão detalhada por canal
+            </p>
+          </div>
+
+          <div className="flex flex-col items-start gap-3 sm:items-end">
+            <Link
+              href={integrationsPath}
+              className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-800"
+            >
+              <Settings className="h-4 w-4" aria-hidden />
+              Configurar Integrações
+            </Link>
+            <Suspense
+              fallback={
+                <div className="h-9 w-48 animate-pulse rounded-full bg-zinc-800" />
+              }
+            >
+              <DashboardDateRange basePath={clientBasePath} />
+            </Suspense>
+          </div>
         </header>
-
-        {integrationError && (
-          <div
-            role="alert"
-            className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"
-          >
-            <p className="font-medium">Falha ao conectar a integração</p>
-            <p className="mt-0.5 text-red-300/90">
-              {INTEGRATION_ERROR_MESSAGES[integrationError] ??
-                "Ocorreu um problema inesperado durante a autenticação."}
-            </p>
-          </div>
-        )}
-
-        {integrationSuccess && !integrationError && (
-          <div
-            role="status"
-            className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300"
-          >
-            <p className="font-medium">Integração conectada com sucesso!</p>
-            <p className="mt-0.5 text-emerald-300/90">
-              As credenciais foram salvas e já podem ser usadas na
-              sincronização.
-            </p>
-          </div>
-        )}
 
         <BlendedSummary channels={channels} />
 
         <ClientAnalyticsTabs
-          clientId={client.id}
+          integrationsHref={integrationsPath}
           ga4Connected={ga4Connected}
           metaConnected={metaConnected}
           ga4Report={ga4Report}
           ga4Error={ga4Error}
         />
-
-        <section>
-          <h2 className="mb-4 text-lg font-semibold text-zinc-100">
-            Integrações
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {PROVIDERS.map(({ provider, label, description }) => {
-              const token = tokensByProvider.get(provider);
-              const connected = Boolean(token?.isActive);
-              const externalAccountId = token?.externalAccountId ?? null;
-              return (
-                <IntegrationCard
-                  key={`${provider}-${connected}-${externalAccountId ?? ""}`}
-                  clientId={client.id}
-                  provider={provider}
-                  label={label}
-                  description={description}
-                  connected={connected}
-                  externalAccountId={externalAccountId}
-                />
-              );
-            })}
-          </div>
-        </section>
       </div>
     </main>
   );
