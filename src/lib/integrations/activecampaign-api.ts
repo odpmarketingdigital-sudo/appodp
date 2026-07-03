@@ -11,6 +11,7 @@ import type {
 import type { DateRange } from "@/types/integrations";
 
 const PAGE_SIZE = 100;
+const MAX_PAGE_COUNT = 100;
 const PACING_DELAY_MS = 50;
 const CACHE_REVALIDATE_SECONDS = 300;
 
@@ -91,9 +92,15 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** created_before é exclusivo; avança 1 dia para incluir o endDate. */
-function exclusiveEndDate(endDate: string): string {
-  return format(addDays(parseISO(endDate), 1), "yyyy-MM-dd");
+/** Início do dia em ISO 8601 (UTC) para filters[created_after]. */
+function toApiCreatedAfter(date: string): string {
+  return new Date(`${date}T00:00:00.000Z`).toISOString();
+}
+
+/** Início do dia seguinte em ISO 8601 (UTC) para filters[created_before] (exclusivo). */
+function toApiCreatedBefore(endDate: string): string {
+  const nextDay = format(addDays(parseISO(endDate), 1), "yyyy-MM-dd");
+  return new Date(`${nextDay}T00:00:00.000Z`).toISOString();
 }
 
 function slimDeal(deal: ActiveCampaignDeal): DealAggregateFields | null {
@@ -129,13 +136,15 @@ function buildDealsQuery(
   offset: number,
   pipelineId?: string,
 ): string {
+  const dateAfter = toApiCreatedAfter(startDate);
+  const dateBefore = toApiCreatedBefore(endDate);
+
   const params = new URLSearchParams();
   params.set("limit", String(PAGE_SIZE));
   params.set("offset", String(offset));
   params.set("orders[cdate]", "DESC");
-  // Filtros nativos documentados pelo ActiveCampaign para deals.
-  params.set("filters[created_after]", startDate);
-  params.set("filters[created_before]", exclusiveEndDate(endDate));
+  params.set("filters[created_after]", dateAfter);
+  params.set("filters[created_before]", dateBefore);
 
   if (pipelineId) {
     params.set("filters[group]", pipelineId);
@@ -219,9 +228,14 @@ async function fetchAllDealsInRange(
 ): Promise<DealAggregateFields[]> {
   const deals: DealAggregateFields[] = [];
   let offset = 0;
+  let pageCount = 0;
   const usePacing = isSixtyDayRange({ start: startDate, end: endDate });
 
   while (true) {
+    if (pageCount >= MAX_PAGE_COUNT) {
+      break;
+    }
+
     const response = await fetchDealsPage(
       apiBaseUrl,
       apiToken,
@@ -231,6 +245,13 @@ async function fetchAllDealsInRange(
       pipelineId,
     );
     const batch = response.deals ?? [];
+
+    console.log(
+      "[ActiveCampaign] Carregando página:",
+      pageCount,
+      "Deals recuperados:",
+      batch.length,
+    );
 
     for (const deal of batch) {
       const slim = slimDeal(deal);
@@ -244,6 +265,7 @@ async function fetchAllDealsInRange(
     }
 
     offset += PAGE_SIZE;
+    pageCount += 1;
 
     if (usePacing) {
       await sleep(PACING_DELAY_MS);
