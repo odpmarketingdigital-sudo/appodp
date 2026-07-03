@@ -6,6 +6,7 @@ import { IntegrationProvider } from "@/app/generated/prisma";
 import { auth } from "@/auth";
 import { BlendedSummary } from "@/components/blended-summary";
 import { ClientAnalyticsTabs } from "@/components/client-analytics-tabs";
+import { CrmDealMetricsSection } from "@/components/crm-deal-metrics-section";
 import {
   type MetricChannel,
   type MetricPoint,
@@ -17,11 +18,9 @@ import {
   parseDateRangePreset,
   resolveDateRangePreset,
 } from "@/lib/date-ranges";
-import { getDealMetrics } from "@/lib/integrations/activecampaign-api";
 import { fetchGa4DashboardReport } from "@/lib/integrations/ga4-api";
 import { prisma } from "@/lib/prisma";
 
-import type { DealMetricsReport } from "@/types/activecampaign";
 import type { GA4DashboardReport } from "@/types/ga4";
 
 const CHART_PROVIDERS = [
@@ -77,8 +76,6 @@ export default async function ClientDetailPage({
 
   let ga4Report: GA4DashboardReport | null = null;
   let ga4Error: string | null = null;
-  let dealMetrics: DealMetricsReport | null = null;
-  let dealMetricsError: string | null = null;
 
   const connection = await getClientGa4Connection(
     client.id,
@@ -108,21 +105,15 @@ export default async function ClientDetailPage({
     : null;
   const acPipelineSelected = Boolean(acConnection?.pipelineId);
 
-  if (acConnection?.pipelineId) {
-    try {
-      dealMetrics = await getDealMetrics(
-        acConnection.apiBaseUrl,
-        acConnection.apiToken,
-        range,
-        acConnection.pipelineId,
-      );
-    } catch (error) {
-      dealMetricsError =
-        error instanceof Error
-          ? error.message
-          : "Não foi possível carregar os negócios do ActiveCampaign.";
-    }
-  }
+  const crmMetricsContent =
+    acConnection?.pipelineId ? (
+      <CrmDealMetricsSection
+        apiBaseUrl={acConnection.apiBaseUrl}
+        apiToken={acConnection.apiToken}
+        range={range}
+        pipelineId={acConnection.pipelineId}
+      />
+    ) : null;
 
   const metricHistory = await prisma.marketingMetricHistory.findMany({
     where: {
@@ -186,10 +177,10 @@ export default async function ClientDetailPage({
           metaConnected={metaConnected}
           acConnected={acConnected}
           acPipelineSelected={acPipelineSelected}
+          crmMetricsKey={`${range.start}-${range.end}`}
+          crmMetricsContent={crmMetricsContent}
           ga4Report={ga4Report}
           ga4Error={ga4Error}
-          dealMetrics={dealMetrics}
-          dealMetricsError={dealMetricsError}
         />
       </div>
     </main>

@@ -1,13 +1,12 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, type ReactNode } from "react";
 import { BarChart3, Megaphone, Users } from "lucide-react";
 
-import { CrmDealMetricsDashboard } from "@/components/crm-deal-metrics-dashboard";
+import { CrmDealMetricsSkeleton } from "@/components/crm-deal-metrics-skeleton";
 import { DashboardDateRange } from "@/components/dashboard-date-range";
 import { Ga4DashboardCharts } from "@/components/ga4-dashboard-charts";
 import { IntegrationEmptyState } from "@/components/integration-empty-state";
-import type { DealMetricsReport } from "@/types/activecampaign";
 import type { GA4DashboardReport } from "@/types/ga4";
 
 const TABS = [
@@ -25,10 +24,10 @@ type ClientAnalyticsTabsProps = {
   metaConnected: boolean;
   acConnected: boolean;
   acPipelineSelected: boolean;
+  crmMetricsKey: string;
+  crmMetricsContent: ReactNode | null;
   ga4Report: GA4DashboardReport | null;
   ga4Error: string | null;
-  dealMetrics: DealMetricsReport | null;
-  dealMetricsError: string | null;
 };
 
 export function ClientAnalyticsTabs({
@@ -38,10 +37,10 @@ export function ClientAnalyticsTabs({
   metaConnected,
   acConnected,
   acPipelineSelected,
+  crmMetricsKey,
+  crmMetricsContent,
   ga4Report,
   ga4Error,
-  dealMetrics,
-  dealMetricsError,
 }: ClientAnalyticsTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("ga4");
 
@@ -152,17 +151,13 @@ export function ClientAnalyticsTabs({
               />
             )}
 
-            {acConnected && acPipelineSelected && dealMetricsError && (
-              <div
-                role="alert"
-                className="rounded-xl border border-red-900/50 bg-red-950/40 px-4 py-3 text-sm text-red-300"
+            {acConnected && acPipelineSelected && (
+              <Suspense
+                key={crmMetricsKey}
+                fallback={<CrmDealMetricsSkeleton />}
               >
-                {dealMetricsError}
-              </div>
-            )}
-
-            {acConnected && acPipelineSelected && !dealMetricsError && dealMetrics && (
-              <CrmDealMetricsDashboard report={dealMetrics} />
+                {crmMetricsContent}
+              </Suspense>
             )}
           </div>
         )}

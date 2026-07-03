@@ -1,6 +1,6 @@
-import { differenceInCalendarDays, parseISO } from "date-fns";
 import { unstable_cache } from "next/cache";
 
+import { isSixtyDayRange } from "@/lib/date-ranges";
 import type {
   AcPipelineOption,
   DealMetricsBreakdownRow,
@@ -10,9 +10,16 @@ import type {
 import type { DateRange } from "@/types/integrations";
 
 const PAGE_SIZE = 100;
-const MAX_PAGES = 50;
-const LONG_PERIOD_DAYS = 31;
+const PACING_DELAY_MS = 50;
 const CACHE_REVALIDATE_SECONDS = 300;
+
+/** Campos mínimos extraídos de cada deal para agregação. */
+type DealAggregateFields = {
+  stage?: string;
+  owner?: string;
+  value?: string;
+  status?: string;
+};
 
 type ActiveCampaignDeal = {
   id: string;
@@ -72,9 +79,21 @@ function parseDealValue(value: string | undefined): number {
   return toNumber(value) / 100;
 }
 
-/** Dias inclusivos entre start e end (YYYY-MM-DD). */
-export function rangeSpanDays(range: DateRange): number {
-  return differenceInCalendarDays(parseISO(range.end), parseISO(range.start)) + 1;
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function slimDeal(deal: ActiveCampaignDeal): DealAggregateFields | null {
+  if (deal.isDisabled) {
+    return null;
+  }
+
+  return {
+    stage: deal.stage,
+    owner: deal.owner,
+    value: deal.value,
+    status: deal.status,
+  };
 }
 
 function buildDealsQuery(
@@ -162,14 +181,13 @@ async function fetchAllDealsInRange(
   apiBaseUrl: string,
   apiToken: string,
   range: DateRange,
-  maxPages: number,
   pipelineId?: string,
-): Promise<{ deals: ActiveCampaignDeal[]; truncated: boolean }> {
-  const deals: ActiveCampaignDeal[] = [];
+): Promise<DealAggregateFields[]> {
+  const deals: DealAggregateFields[] = [];
   let offset = 0;
-  let truncated = false;
+  const usePacing = isSixtyDayRange(range);
 
-  for (let page = 0; page < maxPages; page += 1) {
+  while (true) {
     const response = await fetchDealsPage(
       apiBaseUrl,
       apiToken,
@@ -178,25 +196,26 @@ async function fetchAllDealsInRange(
       pipelineId,
     );
     const batch = response.deals ?? [];
-    deals.push(...batch.filter((deal) => !deal.isDisabled));
 
-    const total = toNumber(String(response.meta?.total ?? 0));
-    offset += PAGE_SIZE;
+    for (const deal of batch) {
+      const slim = slimDeal(deal);
+      if (slim) {
+        deals.push(slim);
+      }
+    }
 
     if (batch.length < PAGE_SIZE) {
       break;
     }
 
-    if (total > 0 && offset >= total) {
-      break;
-    }
+    offset += PAGE_SIZE;
 
-    if (page === maxPages - 1 && batch.length === PAGE_SIZE) {
-      truncated = true;
+    if (usePacing) {
+      await sleep(PACING_DELAY_MS);
     }
   }
 
-  return { deals, truncated };
+  return deals;
 }
 
 async function fetchMetadataMaps(
@@ -252,8 +271,8 @@ async function fetchOwnerMap(
 }
 
 function aggregateBreakdown(
-  deals: ActiveCampaignDeal[],
-  resolveName: (deal: ActiveCampaignDeal) => string,
+  deals: DealAggregateFields[],
+  resolveName: (deal: DealAggregateFields) => string,
 ): DealMetricsBreakdownRow[] {
   const map = new Map<string, { count: number; value: number }>();
 
@@ -273,7 +292,7 @@ function aggregateBreakdown(
 }
 
 function aggregateOwnersWithStages(
-  deals: ActiveCampaignDeal[],
+  deals: DealAggregateFields[],
   stageMap: Map<string, string>,
   ownerMap: Map<string, string>,
 ): DealMetricsOwnerRow[] {
@@ -313,7 +332,7 @@ function aggregateOwnersWithStages(
     .sort((a, b) => b.count - a.count);
 }
 
-function aggregateKpis(deals: ActiveCampaignDeal[]) {
+function aggregateKpis(deals: DealAggregateFields[]) {
   let totalValue = 0;
   let winCount = 0;
   let loseCount = 0;
@@ -336,13 +355,9 @@ async function computeDealMetrics(
   range: DateRange,
   pipelineId?: string,
 ): Promise<DealMetricsReport> {
-  const isLongPeriod = rangeSpanDays(range) > LONG_PERIOD_DAYS;
-  // Períodos > 31 dias ficam limitados a MAX_PAGES para evitar timeout na Vercel.
-  const maxPages = MAX_PAGES;
-
-  const [{ deals, truncated }, { stageMap, ownerMap }] = await Promise.all([
-    fetchAllDealsInRange(apiBaseUrl, apiToken, range, maxPages, pipelineId),
+  const [{ stageMap, ownerMap }, deals] = await Promise.all([
     fetchMetadataMaps(apiBaseUrl, apiToken),
+    fetchAllDealsInRange(apiBaseUrl, apiToken, range, pipelineId),
   ]);
 
   return {
@@ -354,14 +369,12 @@ async function computeDealMetrics(
     }),
     owners: aggregateOwnersWithStages(deals, stageMap, ownerMap),
     fetchedAt: new Date().toISOString(),
-    truncated,
-    longPeriod: isLongPeriod,
   };
 }
 
 /**
  * Busca negócios do ActiveCampaign com filtros nativos de data, paginação
- * controlada e agregação em memória antes de retornar ao front-end.
+ * completa e agregação em memória antes de retornar ao front-end.
  */
 export async function getDealMetrics(
   apiBaseUrl: string,

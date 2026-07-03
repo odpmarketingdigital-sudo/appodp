@@ -44,8 +44,4 @@ export type DealMetricsReport = {
   stages: DealMetricsBreakdownRow[];
   owners: DealMetricsOwnerRow[];
   fetchedAt: string;
-  /** Indica se a paginação atingiu o limite de segurança. */
-  truncated: boolean;
-  /** Período selecionado excede 31 dias (limite de performance). */
-  longPeriod: boolean;
 };

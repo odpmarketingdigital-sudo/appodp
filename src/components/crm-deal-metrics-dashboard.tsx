@@ -143,33 +143,11 @@ function OwnersAccordion({ owners }: { owners: DealMetricsOwnerRow[] }) {
   );
 }
 
-const MAX_DEALS_DISPLAYED = 100 * 50;
-
 export function CrmDealMetricsDashboard({ report }: CrmDealMetricsDashboardProps) {
   const { kpis } = report;
 
   return (
     <div className="space-y-4">
-      {report.truncated && (
-        <div
-          role="status"
-          className="rounded-xl border border-amber-900/50 bg-amber-950/30 px-4 py-3 text-sm text-amber-200"
-        >
-          {report.longPeriod ? (
-            <>
-              Exibindo até {numberFormatter.format(MAX_DEALS_DISPLAYED)} negócios
-              do período. Para intervalos maiores que 31 dias, recomendamos
-              exportar o relatório completo diretamente no ActiveCampaign.
-            </>
-          ) : (
-            <>
-              Exibindo até {numberFormatter.format(MAX_DEALS_DISPLAYED)} negócios
-              do período. Refine o intervalo de datas para ver todos os registros.
-            </>
-          )}
-        </div>
-      )}
-
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
           <span className="text-sm text-zinc-400">Negócios</span>
