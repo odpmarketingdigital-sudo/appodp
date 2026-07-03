@@ -1,3 +1,4 @@
+import { addDays, format, parseISO } from "date-fns";
 import { unstable_cache } from "next/cache";
 
 import { isSixtyDayRange } from "@/lib/date-ranges";
@@ -15,8 +16,8 @@ const CACHE_REVALIDATE_SECONDS = 300;
 
 /** Campos mínimos extraídos de cada deal para agregação. */
 type DealAggregateFields = {
-  stage?: string;
-  owner?: string;
+  stageId: string;
+  ownerId: string;
   value?: string;
   status?: string;
 };
@@ -69,6 +70,13 @@ function normalizeApiBaseUrl(baseUrl: string): string {
   return `${trimmed}/api/3`;
 }
 
+function normalizeId(id: string | number | undefined | null): string {
+  if (id === undefined || id === null || String(id).trim() === "") {
+    return "unknown";
+  }
+  return String(id).trim();
+}
+
 function toNumber(value: string | undefined): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -83,21 +91,41 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** created_before é exclusivo; avança 1 dia para incluir o endDate. */
+function exclusiveEndDate(endDate: string): string {
+  return format(addDays(parseISO(endDate), 1), "yyyy-MM-dd");
+}
+
 function slimDeal(deal: ActiveCampaignDeal): DealAggregateFields | null {
   if (deal.isDisabled) {
     return null;
   }
 
   return {
-    stage: deal.stage,
-    owner: deal.owner,
+    stageId: normalizeId(deal.stage),
+    ownerId: normalizeId(deal.owner),
     value: deal.value,
     status: deal.status,
   };
 }
 
+function resolveStageName(
+  stageMap: Map<string, string>,
+  stageId: string,
+): string {
+  return stageMap.get(stageId) ?? `Estágio ${stageId}`;
+}
+
+function resolveOwnerName(
+  ownerMap: Map<string, string>,
+  ownerId: string,
+): string {
+  return ownerMap.get(ownerId) ?? `Vendedor ${ownerId}`;
+}
+
 function buildDealsQuery(
-  range: DateRange,
+  startDate: string,
+  endDate: string,
   offset: number,
   pipelineId?: string,
 ): string {
@@ -105,11 +133,12 @@ function buildDealsQuery(
   params.set("limit", String(PAGE_SIZE));
   params.set("offset", String(offset));
   params.set("orders[cdate]", "DESC");
-  params.set("filters[cdate_greater_than]", range.start);
-  params.set("filters[cdate_less_than]", range.end);
+  // Filtros nativos documentados pelo ActiveCampaign para deals.
+  params.set("filters[created_after]", startDate);
+  params.set("filters[created_before]", exclusiveEndDate(endDate));
 
   if (pipelineId) {
-    params.set("filters[pipeline]", pipelineId);
+    params.set("filters[group]", pipelineId);
   }
 
   return params.toString();
@@ -138,17 +167,20 @@ async function acFetch<T>(
   apiBaseUrl: string,
   apiToken: string,
   path: string,
-  revalidate = CACHE_REVALIDATE_SECONDS,
+  options: { revalidate?: number; noStore?: boolean } = {},
 ): Promise<T> {
   const base = normalizeApiBaseUrl(apiBaseUrl);
   const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
+  const { revalidate = CACHE_REVALIDATE_SECONDS, noStore = false } = options;
 
   const response = await fetch(url, {
     headers: {
       "Api-Token": apiToken,
       Accept: "application/json",
     },
-    next: { revalidate },
+    ...(noStore
+      ? { cache: "no-store" as const }
+      : { next: { revalidate } }),
   });
 
   if (!response.ok) {
@@ -164,34 +196,37 @@ async function acFetch<T>(
 async function fetchDealsPage(
   apiBaseUrl: string,
   apiToken: string,
-  range: DateRange,
+  startDate: string,
+  endDate: string,
   offset: number,
   pipelineId?: string,
 ): Promise<DealsListResponse> {
-  const query = buildDealsQuery(range, offset, pipelineId);
+  const query = buildDealsQuery(startDate, endDate, offset, pipelineId);
   return acFetch<DealsListResponse>(
     apiBaseUrl,
     apiToken,
     `/deals?${query}`,
-    0,
+    { noStore: true },
   );
 }
 
 async function fetchAllDealsInRange(
   apiBaseUrl: string,
   apiToken: string,
-  range: DateRange,
+  startDate: string,
+  endDate: string,
   pipelineId?: string,
 ): Promise<DealAggregateFields[]> {
   const deals: DealAggregateFields[] = [];
   let offset = 0;
-  const usePacing = isSixtyDayRange(range);
+  const usePacing = isSixtyDayRange({ start: startDate, end: endDate });
 
   while (true) {
     const response = await fetchDealsPage(
       apiBaseUrl,
       apiToken,
-      range,
+      startDate,
+      endDate,
       offset,
       pipelineId,
     );
@@ -221,9 +256,10 @@ async function fetchAllDealsInRange(
 async function fetchMetadataMaps(
   apiBaseUrl: string,
   apiToken: string,
+  pipelineId?: string,
 ): Promise<{ stageMap: Map<string, string>; ownerMap: Map<string, string> }> {
   const [stageMap, ownerMap] = await Promise.all([
-    fetchStageMap(apiBaseUrl, apiToken),
+    fetchStageMap(apiBaseUrl, apiToken, pipelineId),
     fetchOwnerMap(apiBaseUrl, apiToken),
   ]);
   return { stageMap, ownerMap };
@@ -232,17 +268,40 @@ async function fetchMetadataMaps(
 async function fetchStageMap(
   apiBaseUrl: string,
   apiToken: string,
+  pipelineId?: string,
 ): Promise<Map<string, string>> {
-  const response = await acFetch<DealStagesResponse>(
-    apiBaseUrl,
-    apiToken,
-    "/dealStages?limit=100",
-  );
-
   const map = new Map<string, string>();
-  for (const stage of response.dealStages ?? []) {
-    map.set(stage.id, stage.title?.trim() || `Estágio ${stage.id}`);
+  let offset = 0;
+
+  while (true) {
+    const params = new URLSearchParams();
+    params.set("limit", String(PAGE_SIZE));
+    params.set("offset", String(offset));
+
+    if (pipelineId) {
+      params.set("filters[d_groupid]", pipelineId);
+    }
+
+    const response = await acFetch<DealStagesResponse>(
+      apiBaseUrl,
+      apiToken,
+      `/dealStages?${params.toString()}`,
+      { noStore: true },
+    );
+
+    const batch = response.dealStages ?? [];
+    for (const stage of batch) {
+      const id = normalizeId(stage.id);
+      map.set(id, stage.title?.trim() || `Estágio ${id}`);
+    }
+
+    if (batch.length < PAGE_SIZE) {
+      break;
+    }
+
+    offset += PAGE_SIZE;
   }
+
   return map;
 }
 
@@ -258,13 +317,14 @@ async function fetchOwnerMap(
 
   const map = new Map<string, string>();
   for (const user of response.users ?? []) {
+    const id = normalizeId(user.id);
     const fullName = [user.firstName, user.lastName]
       .filter(Boolean)
       .join(" ")
       .trim();
     map.set(
-      user.id,
-      fullName || user.username?.trim() || `Vendedor ${user.id}`,
+      id,
+      fullName || user.username?.trim() || `Vendedor ${id}`,
     );
   }
   return map;
@@ -302,10 +362,8 @@ function aggregateOwnersWithStages(
   >();
 
   for (const deal of deals) {
-    const ownerId = deal.owner ?? "unknown";
-    const ownerName = ownerMap.get(ownerId) ?? `Vendedor ${ownerId}`;
-    const stageId = deal.stage ?? "unknown";
-    const stageName = stageMap.get(stageId) ?? `Estágio ${stageId}`;
+    const ownerName = resolveOwnerName(ownerMap, deal.ownerId);
+    const stageName = resolveStageName(stageMap, deal.stageId);
     const dealValue = parseDealValue(deal.value);
 
     const existing = map.get(ownerName) ?? {
@@ -352,21 +410,23 @@ function aggregateKpis(deals: DealAggregateFields[]) {
 async function computeDealMetrics(
   apiBaseUrl: string,
   apiToken: string,
-  range: DateRange,
+  startDate: string,
+  endDate: string,
   pipelineId?: string,
 ): Promise<DealMetricsReport> {
+  const range: DateRange = { start: startDate, end: endDate };
+
   const [{ stageMap, ownerMap }, deals] = await Promise.all([
-    fetchMetadataMaps(apiBaseUrl, apiToken),
-    fetchAllDealsInRange(apiBaseUrl, apiToken, range, pipelineId),
+    fetchMetadataMaps(apiBaseUrl, apiToken, pipelineId),
+    fetchAllDealsInRange(apiBaseUrl, apiToken, startDate, endDate, pipelineId),
   ]);
 
   return {
     range,
     kpis: aggregateKpis(deals),
-    stages: aggregateBreakdown(deals, (deal) => {
-      const stageId = deal.stage ?? "unknown";
-      return stageMap.get(stageId) ?? `Estágio ${stageId}`;
-    }),
+    stages: aggregateBreakdown(deals, (deal) =>
+      resolveStageName(stageMap, deal.stageId),
+    ),
     owners: aggregateOwnersWithStages(deals, stageMap, ownerMap),
     fetchedAt: new Date().toISOString(),
   };
@@ -382,13 +442,23 @@ export async function getDealMetrics(
   range: DateRange,
   pipelineId?: string,
 ): Promise<DealMetricsReport> {
+  const startDate = range.start;
+  const endDate = range.end;
+
   const cached = unstable_cache(
-    () => computeDealMetrics(apiBaseUrl, apiToken, range, pipelineId),
+    () =>
+      computeDealMetrics(
+        apiBaseUrl,
+        apiToken,
+        startDate,
+        endDate,
+        pipelineId,
+      ),
     [
       "ac-deal-metrics",
       normalizeApiBaseUrl(apiBaseUrl),
-      range.start,
-      range.end,
+      startDate,
+      endDate,
       pipelineId ?? "all",
     ],
     { revalidate: CACHE_REVALIDATE_SECONDS },
