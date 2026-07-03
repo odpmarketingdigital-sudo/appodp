@@ -2,7 +2,9 @@ import { differenceInCalendarDays, parseISO } from "date-fns";
 import { unstable_cache } from "next/cache";
 
 import type {
+  AcPipelineOption,
   DealMetricsBreakdownRow,
+  DealMetricsOwnerRow,
   DealMetricsReport,
 } from "@/types/activecampaign";
 import type { DateRange } from "@/types/integrations";
@@ -48,6 +50,10 @@ type UsersResponse = {
   users?: AcUser[];
 };
 
+type DealGroupsResponse = {
+  dealGroups?: Array<{ id: string; title?: string }>;
+};
+
 function normalizeApiBaseUrl(baseUrl: string): string {
   const trimmed = baseUrl.trim().replace(/\/+$/, "");
   if (trimmed.endsWith("/api/3")) {
@@ -71,7 +77,11 @@ export function rangeSpanDays(range: DateRange): number {
   return differenceInCalendarDays(parseISO(range.end), parseISO(range.start)) + 1;
 }
 
-function buildDealsQuery(range: DateRange, offset: number): string {
+function buildDealsQuery(
+  range: DateRange,
+  offset: number,
+  pipelineId?: string,
+): string {
   const params = new URLSearchParams();
   params.set("limit", String(PAGE_SIZE));
   params.set("offset", String(offset));
@@ -79,7 +89,30 @@ function buildDealsQuery(range: DateRange, offset: number): string {
   params.set("filters[cdate_greater_than]", range.start);
   params.set("filters[cdate_less_than]", range.end);
 
+  if (pipelineId) {
+    params.set("filters[pipeline]", pipelineId);
+  }
+
   return params.toString();
+}
+
+/** Lista todos os funis (pipelines) da conta ActiveCampaign. */
+export async function listPipelines(
+  apiBaseUrl: string,
+  apiToken: string,
+): Promise<AcPipelineOption[]> {
+  const response = await acFetch<DealGroupsResponse>(
+    apiBaseUrl,
+    apiToken,
+    "/dealGroups?limit=100&filters[have_stages]=1",
+  );
+
+  return (response.dealGroups ?? [])
+    .map((pipeline) => ({
+      id: pipeline.id,
+      title: pipeline.title?.trim() || `Funil ${pipeline.id}`,
+    }))
+    .sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
 }
 
 async function acFetch<T>(
@@ -114,8 +147,9 @@ async function fetchDealsPage(
   apiToken: string,
   range: DateRange,
   offset: number,
+  pipelineId?: string,
 ): Promise<DealsListResponse> {
-  const query = buildDealsQuery(range, offset);
+  const query = buildDealsQuery(range, offset, pipelineId);
   return acFetch<DealsListResponse>(
     apiBaseUrl,
     apiToken,
@@ -129,13 +163,20 @@ async function fetchAllDealsInRange(
   apiToken: string,
   range: DateRange,
   maxPages: number,
+  pipelineId?: string,
 ): Promise<{ deals: ActiveCampaignDeal[]; truncated: boolean }> {
   const deals: ActiveCampaignDeal[] = [];
   let offset = 0;
   let truncated = false;
 
   for (let page = 0; page < maxPages; page += 1) {
-    const response = await fetchDealsPage(apiBaseUrl, apiToken, range, offset);
+    const response = await fetchDealsPage(
+      apiBaseUrl,
+      apiToken,
+      range,
+      offset,
+      pipelineId,
+    );
     const batch = response.deals ?? [];
     deals.push(...batch.filter((deal) => !deal.isDisabled));
 
@@ -231,6 +272,47 @@ function aggregateBreakdown(
     .sort((a, b) => b.value - a.value);
 }
 
+function aggregateOwnersWithStages(
+  deals: ActiveCampaignDeal[],
+  stageMap: Map<string, string>,
+  ownerMap: Map<string, string>,
+): DealMetricsOwnerRow[] {
+  const map = new Map<
+    string,
+    { count: number; value: number; stages: Map<string, number> }
+  >();
+
+  for (const deal of deals) {
+    const ownerId = deal.owner ?? "unknown";
+    const ownerName = ownerMap.get(ownerId) ?? `Vendedor ${ownerId}`;
+    const stageId = deal.stage ?? "unknown";
+    const stageName = stageMap.get(stageId) ?? `Estágio ${stageId}`;
+    const dealValue = parseDealValue(deal.value);
+
+    const existing = map.get(ownerName) ?? {
+      count: 0,
+      value: 0,
+      stages: new Map<string, number>(),
+    };
+
+    existing.count += 1;
+    existing.value += dealValue;
+    existing.stages.set(stageName, (existing.stages.get(stageName) ?? 0) + 1);
+    map.set(ownerName, existing);
+  }
+
+  return [...map.entries()]
+    .map(([name, { count, value, stages }]) => ({
+      name,
+      count,
+      value,
+      stages: [...stages.entries()]
+        .map(([stageName, stageCount]) => ({ name: stageName, count: stageCount }))
+        .sort((a, b) => b.count - a.count),
+    }))
+    .sort((a, b) => b.count - a.count);
+}
+
 function aggregateKpis(deals: ActiveCampaignDeal[]) {
   let totalValue = 0;
   let winCount = 0;
@@ -252,13 +334,14 @@ async function computeDealMetrics(
   apiBaseUrl: string,
   apiToken: string,
   range: DateRange,
+  pipelineId?: string,
 ): Promise<DealMetricsReport> {
   const isLongPeriod = rangeSpanDays(range) > LONG_PERIOD_DAYS;
   // Períodos > 31 dias ficam limitados a MAX_PAGES para evitar timeout na Vercel.
   const maxPages = MAX_PAGES;
 
   const [{ deals, truncated }, { stageMap, ownerMap }] = await Promise.all([
-    fetchAllDealsInRange(apiBaseUrl, apiToken, range, maxPages),
+    fetchAllDealsInRange(apiBaseUrl, apiToken, range, maxPages, pipelineId),
     fetchMetadataMaps(apiBaseUrl, apiToken),
   ]);
 
@@ -269,10 +352,7 @@ async function computeDealMetrics(
       const stageId = deal.stage ?? "unknown";
       return stageMap.get(stageId) ?? `Estágio ${stageId}`;
     }),
-    owners: aggregateBreakdown(deals, (deal) => {
-      const ownerId = deal.owner ?? "unknown";
-      return ownerMap.get(ownerId) ?? `Vendedor ${ownerId}`;
-    }),
+    owners: aggregateOwnersWithStages(deals, stageMap, ownerMap),
     fetchedAt: new Date().toISOString(),
     truncated,
     longPeriod: isLongPeriod,
@@ -287,14 +367,16 @@ export async function getDealMetrics(
   apiBaseUrl: string,
   apiToken: string,
   range: DateRange,
+  pipelineId?: string,
 ): Promise<DealMetricsReport> {
   const cached = unstable_cache(
-    () => computeDealMetrics(apiBaseUrl, apiToken, range),
+    () => computeDealMetrics(apiBaseUrl, apiToken, range, pipelineId),
     [
       "ac-deal-metrics",
       normalizeApiBaseUrl(apiBaseUrl),
       range.start,
       range.end,
+      pipelineId ?? "all",
     ],
     { revalidate: CACHE_REVALIDATE_SECONDS },
   );

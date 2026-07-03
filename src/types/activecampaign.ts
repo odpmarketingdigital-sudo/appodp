@@ -1,5 +1,16 @@
 import type { DateRange } from "@/types/integrations";
 
+/** Funil (pipeline) retornado pela API do ActiveCampaign. */
+export type AcPipelineOption = {
+  id: string;
+  title: string;
+};
+
+/** Metadados persistidos no token de integração ActiveCampaign. */
+export type ActiveCampaignTokenMetadata = {
+  pipelineId?: string;
+};
+
 export type DealMetricsKpis = {
   totalCount: number;
   totalValue: number;
@@ -14,12 +25,24 @@ export type DealMetricsBreakdownRow = {
   value: number;
 };
 
+export type DealMetricsOwnerStageRow = {
+  name: string;
+  count: number;
+};
+
+export type DealMetricsOwnerRow = {
+  name: string;
+  count: number;
+  value: number;
+  stages: DealMetricsOwnerStageRow[];
+};
+
 /** Relatório consolidado de negócios do ActiveCampaign. */
 export type DealMetricsReport = {
   range: DateRange;
   kpis: DealMetricsKpis;
   stages: DealMetricsBreakdownRow[];
-  owners: DealMetricsBreakdownRow[];
+  owners: DealMetricsOwnerRow[];
   fetchedAt: string;
   /** Indica se a paginação atingiu o limite de segurança. */
   truncated: boolean;

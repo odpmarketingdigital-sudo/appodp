@@ -6,6 +6,7 @@ import {
   saveIntegrationTokenAction,
   type IntegrationFormState,
 } from "@/actions/integration";
+import { ActiveCampaignPipelineSelector } from "@/components/activecampaign-pipeline-selector";
 import { IntegrationProvider } from "@/app/generated/prisma";
 
 const initialState: IntegrationFormState = { status: "idle" };
@@ -88,6 +89,7 @@ type IntegrationCardProps = {
   description: string;
   connected: boolean;
   externalAccountId: string | null;
+  pipelineId?: string | null;
 };
 
 export function IntegrationCard({
@@ -97,6 +99,7 @@ export function IntegrationCard({
   description,
   connected,
   externalAccountId,
+  pipelineId = null,
 }: IntegrationCardProps) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(
@@ -229,6 +232,14 @@ export function IntegrationCard({
             </button>
           </div>
         </form>
+      )}
+
+      {provider === IntegrationProvider.ACTIVECAMPAIGN && (
+        <ActiveCampaignPipelineSelector
+          clientId={clientId}
+          connected={connected}
+          currentPipelineId={pipelineId}
+        />
       )}
     </div>
   );

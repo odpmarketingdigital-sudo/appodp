@@ -7,6 +7,7 @@ import { auth } from "@/auth";
 import { Ga4PropertySelector } from "@/components/ga4-property-selector";
 import { IntegrationCard } from "@/components/integration-card";
 import { SyncMetricsButton } from "@/components/sync-metrics-button";
+import { parseActiveCampaignMetadata } from "@/lib/activecampaign-metadata";
 import { getCurrentMembership } from "@/lib/company";
 import { clientHasGa4Token } from "@/lib/client-ga4";
 import { prisma } from "@/lib/prisma";
@@ -182,15 +183,21 @@ export default async function ClientIntegrationsPage({
               const token = tokensByProvider.get(provider);
               const connected = Boolean(token?.isActive);
               const externalAccountId = token?.externalAccountId ?? null;
+              const pipelineId =
+                provider === IntegrationProvider.ACTIVECAMPAIGN
+                  ? (parseActiveCampaignMetadata(token?.metadata).pipelineId ??
+                    null)
+                  : null;
               return (
                 <IntegrationCard
-                  key={`${provider}-${connected}-${externalAccountId ?? ""}`}
+                  key={`${provider}-${connected}-${externalAccountId ?? ""}-${pipelineId ?? ""}`}
                   clientId={client.id}
                   provider={provider}
                   label={label}
                   description={description}
                   connected={connected}
                   externalAccountId={externalAccountId}
+                  pipelineId={pipelineId}
                 />
               );
             })}

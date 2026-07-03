@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { IntegrationProvider } from "@/app/generated/prisma";
 import { auth } from "@/auth";
+import { parseActiveCampaignMetadata } from "@/lib/activecampaign-metadata";
 import { getCurrentMembership } from "@/lib/company";
 import { prisma } from "@/lib/prisma";
 
@@ -120,6 +121,15 @@ export async function saveIntegrationTokenAction(
   }
 
   try {
+    const existingToken = await prisma.integrationToken.findUnique({
+      where: { clientId_provider: { clientId, provider: providerToSave } },
+      select: { metadata: true },
+    });
+    const preservedMetadata =
+      providerToSave === IntegrationProvider.ACTIVECAMPAIGN
+        ? parseActiveCampaignMetadata(existingToken?.metadata)
+        : undefined;
+
     await prisma.integrationToken.upsert({
       where: { clientId_provider: { clientId, provider: providerToSave } },
       create: {
@@ -127,6 +137,10 @@ export async function saveIntegrationTokenAction(
         provider: providerToSave,
         accessToken: accessTokenToSave,
         externalAccountId: externalAccountId ?? null,
+        metadata:
+          preservedMetadata && Object.keys(preservedMetadata).length > 0
+            ? preservedMetadata
+            : undefined,
         isActive: true,
       },
       update: {
@@ -143,6 +157,7 @@ export async function saveIntegrationTokenAction(
   }
 
   revalidatePath(`/dashboard/clients/${clientId}`);
+  revalidatePath(`/dashboard/clients/${clientId}/integrations`);
 
   return { status: "success", message: "Integração salva com sucesso." };
 }

@@ -1,13 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Suspense } from "react";
 import { Settings } from "lucide-react";
 
 import { IntegrationProvider } from "@/app/generated/prisma";
 import { auth } from "@/auth";
 import { BlendedSummary } from "@/components/blended-summary";
 import { ClientAnalyticsTabs } from "@/components/client-analytics-tabs";
-import { DashboardDateRange } from "@/components/dashboard-date-range";
 import {
   type MetricChannel,
   type MetricPoint,
@@ -102,25 +100,27 @@ export default async function ClientDetailPage({
     }
   }
 
-  if (acConnected) {
-    const acConnection = await getClientActiveCampaignConnection(
-      client.id,
-      membership.company.id,
-    );
+  const acConnection = acConnected
+    ? await getClientActiveCampaignConnection(
+        client.id,
+        membership.company.id,
+      )
+    : null;
+  const acPipelineSelected = Boolean(acConnection?.pipelineId);
 
-    if (acConnection) {
-      try {
-        dealMetrics = await getDealMetrics(
-          acConnection.apiBaseUrl,
-          acConnection.apiToken,
-          range,
-        );
-      } catch (error) {
-        dealMetricsError =
-          error instanceof Error
-            ? error.message
-            : "Não foi possível carregar os negócios do ActiveCampaign.";
-      }
+  if (acConnection?.pipelineId) {
+    try {
+      dealMetrics = await getDealMetrics(
+        acConnection.apiBaseUrl,
+        acConnection.apiToken,
+        range,
+        acConnection.pipelineId,
+      );
+    } catch (error) {
+      dealMetricsError =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível carregar os negócios do ActiveCampaign.";
     }
   }
 
@@ -174,23 +174,18 @@ export default async function ClientDetailPage({
               <Settings className="h-4 w-4" aria-hidden />
               Configurar Integrações
             </Link>
-            <Suspense
-              fallback={
-                <div className="h-9 w-48 animate-pulse rounded-full bg-zinc-800" />
-              }
-            >
-              <DashboardDateRange basePath={clientBasePath} />
-            </Suspense>
           </div>
         </header>
 
         <BlendedSummary channels={channels} />
 
         <ClientAnalyticsTabs
+          basePath={clientBasePath}
           integrationsHref={integrationsPath}
           ga4Connected={ga4Connected}
           metaConnected={metaConnected}
           acConnected={acConnected}
+          acPipelineSelected={acPipelineSelected}
           ga4Report={ga4Report}
           ga4Error={ga4Error}
           dealMetrics={dealMetrics}

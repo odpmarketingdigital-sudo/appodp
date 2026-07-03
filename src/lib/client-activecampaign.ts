@@ -1,10 +1,12 @@
 import { IntegrationProvider } from "@/app/generated/prisma";
+import { parseActiveCampaignMetadata } from "@/lib/activecampaign-metadata";
 import { prisma } from "@/lib/prisma";
 
 export type ClientActiveCampaignConnection = {
   apiToken: string;
   apiBaseUrl: string;
   clientId: string;
+  pipelineId: string | null;
 };
 
 /** Token ActiveCampaign ativo e URL da conta para um cliente específico. */
@@ -25,6 +27,7 @@ export async function getClientActiveCampaignConnection(
         select: {
           accessToken: true,
           externalAccountId: true,
+          metadata: true,
         },
       },
     },
@@ -35,9 +38,12 @@ export async function getClientActiveCampaignConnection(
     return null;
   }
 
+  const metadata = parseActiveCampaignMetadata(token.metadata);
+
   return {
     apiToken: token.accessToken,
     apiBaseUrl: token.externalAccountId,
     clientId: client.id,
+    pipelineId: metadata.pipelineId ?? null,
   };
 }
