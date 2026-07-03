@@ -20,8 +20,12 @@ export type IntegrationFormState = {
 const saveSchema = z.object({
   clientId: z.string().min(1),
   provider: z.enum(IntegrationProvider),
-  accessToken: z.string().trim().min(1, "Informe o Access Token."),
-  // ID externo é opcional (ex.: property ID do GA4, customer ID do Ads).
+  accessToken: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().trim().optional(),
+  ),
+  // Identificador externo é opcional para a maioria dos provedores.
   externalAccountId: z.preprocess(
     (value) =>
       typeof value === "string" && value.trim() === "" ? undefined : value,
@@ -43,11 +47,17 @@ export async function saveIntegrationTokenAction(
     return { status: "error", message: "Sessão expirada. Faça login novamente." };
   }
 
+  const provider = formData.get("provider");
+  const rawAccessToken =
+    formData.get("accessToken") ?? formData.get("activeCampaignKey");
+  const rawExternalAccountId =
+    formData.get("externalAccountId") ?? formData.get("activeCampaignUrl");
+
   const parsed = saveSchema.safeParse({
     clientId: formData.get("clientId"),
-    provider: formData.get("provider"),
-    accessToken: formData.get("accessToken"),
-    externalAccountId: formData.get("externalAccountId"),
+    provider,
+    accessToken: rawAccessToken,
+    externalAccountId: rawExternalAccountId,
   });
 
   if (!parsed.success) {
@@ -65,7 +75,34 @@ export async function saveIntegrationTokenAction(
     };
   }
 
-  const { clientId, provider, accessToken, externalAccountId } = parsed.data;
+  const { clientId, provider: parsedProvider, accessToken, externalAccountId } =
+    parsed.data;
+  const fieldErrors: NonNullable<IntegrationFormState["fieldErrors"]> = {};
+
+  if (!accessToken || accessToken.trim().length === 0) {
+    fieldErrors.accessToken =
+      parsedProvider === IntegrationProvider.ACTIVECAMPAIGN
+        ? "Informe a Chave de API (Key)."
+        : "Informe o token de acesso.";
+  }
+
+  if (
+    parsedProvider === IntegrationProvider.ACTIVECAMPAIGN &&
+    (!externalAccountId || externalAccountId.trim().length === 0)
+  ) {
+    fieldErrors.externalAccountId = "Informe a URL da API.";
+  }
+
+  if (fieldErrors.accessToken || fieldErrors.externalAccountId) {
+    return {
+      status: "error",
+      message: "Verifique os campos destacados.",
+      fieldErrors,
+    };
+  }
+
+  const providerToSave = parsedProvider;
+  const accessTokenToSave = accessToken as string;
 
   const membership = await getCurrentMembership(session.user.id);
   if (!membership) {
@@ -84,16 +121,16 @@ export async function saveIntegrationTokenAction(
 
   try {
     await prisma.integrationToken.upsert({
-      where: { clientId_provider: { clientId, provider } },
+      where: { clientId_provider: { clientId, provider: providerToSave } },
       create: {
         clientId,
-        provider,
-        accessToken,
+        provider: providerToSave,
+        accessToken: accessTokenToSave,
         externalAccountId: externalAccountId ?? null,
         isActive: true,
       },
       update: {
-        accessToken,
+        accessToken: accessTokenToSave,
         externalAccountId: externalAccountId ?? null,
         isActive: true,
       },

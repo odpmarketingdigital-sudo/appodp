@@ -12,6 +12,17 @@ const initialState: IntegrationFormState = { status: "idle" };
 
 type OAuthConfig = { url: string; label: string };
 
+type ManualIntegrationFieldConfig = {
+  tokenLabel: string;
+  tokenPlaceholder: string;
+  tokenFieldName: string;
+  accountLabel: string;
+  accountPlaceholder: string;
+  accountFieldName: string;
+  accountRequired: boolean;
+  accountDisplayLabel: string;
+};
+
 /**
  * Retorna a configuração de OAuth para provedores que usam fluxo de
  * autorização (Google/Meta) em vez do formulário manual de token.
@@ -42,6 +53,34 @@ function getOAuthConfig(
   return null;
 }
 
+function getManualFieldConfig(
+  provider: IntegrationProvider,
+): ManualIntegrationFieldConfig {
+  if (provider === IntegrationProvider.ACTIVECAMPAIGN) {
+    return {
+      tokenLabel: "Chave de API (Key)",
+      tokenPlaceholder: "Cole a chave de API (Token)",
+      tokenFieldName: "activeCampaignKey",
+      accountLabel: "URL da API",
+      accountPlaceholder: "Ex: https://suaempresa.api-us1.com",
+      accountFieldName: "activeCampaignUrl",
+      accountRequired: true,
+      accountDisplayLabel: "URL da API",
+    };
+  }
+
+  return {
+    tokenLabel: "Access Token",
+    tokenPlaceholder: "Cole o token de acesso",
+    tokenFieldName: "accessToken",
+    accountLabel: "External Account ID",
+    accountPlaceholder: "Ex.: ID da propriedade do GA4",
+    accountFieldName: "externalAccountId",
+    accountRequired: false,
+    accountDisplayLabel: "ID externo",
+  };
+}
+
 type IntegrationCardProps = {
   clientId: string;
   provider: IntegrationProvider;
@@ -66,6 +105,7 @@ export function IntegrationCard({
   );
 
   const oauth = getOAuthConfig(provider, clientId);
+  const fieldConfig = getManualFieldConfig(provider);
 
   return (
     <div className="flex flex-col rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
@@ -87,7 +127,7 @@ export function IntegrationCard({
 
       {connected && externalAccountId && (
         <p className="mt-3 truncate text-xs text-zinc-500">
-          ID externo:{" "}
+          {fieldConfig.accountDisplayLabel}:{" "}
           <span className="font-mono text-zinc-300">{externalAccountId}</span>
         </p>
       )}
@@ -131,15 +171,15 @@ export function IntegrationCard({
               htmlFor={`accessToken-${provider}`}
               className="block text-xs font-medium text-zinc-300"
             >
-              Access Token
+              {fieldConfig.tokenLabel}
             </label>
             <input
               id={`accessToken-${provider}`}
-              name="accessToken"
+              name={fieldConfig.tokenFieldName}
               type="password"
               required
               autoComplete="off"
-              placeholder="Cole o token de acesso"
+              placeholder={fieldConfig.tokenPlaceholder}
               className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-700"
             />
             {state.fieldErrors?.accessToken && (
@@ -154,15 +194,15 @@ export function IntegrationCard({
               htmlFor={`externalAccountId-${provider}`}
               className="block text-xs font-medium text-zinc-300"
             >
-              External Account ID{" "}
-              <span className="font-normal text-zinc-500">(opcional)</span>
+              {fieldConfig.accountLabel}
             </label>
             <input
               id={`externalAccountId-${provider}`}
-              name="externalAccountId"
+              name={fieldConfig.accountFieldName}
               type="text"
               defaultValue={externalAccountId ?? ""}
-              placeholder="Ex.: ID da propriedade do GA4"
+              required={fieldConfig.accountRequired}
+              placeholder={fieldConfig.accountPlaceholder}
               className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-700"
             />
             {state.fieldErrors?.externalAccountId && (
