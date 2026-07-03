@@ -13,14 +13,17 @@ import {
   type MetricPoint,
 } from "@/components/metrics-chart";
 import { getCurrentMembership } from "@/lib/company";
+import { getClientActiveCampaignConnection } from "@/lib/client-activecampaign";
 import { getClientGa4Connection } from "@/lib/client-ga4";
 import {
   parseDateRangePreset,
   resolveDateRangePreset,
 } from "@/lib/date-ranges";
+import { getDealMetrics } from "@/lib/integrations/activecampaign-api";
 import { fetchGa4DashboardReport } from "@/lib/integrations/ga4-api";
 import { prisma } from "@/lib/prisma";
 
+import type { DealMetricsReport } from "@/types/activecampaign";
 import type { GA4DashboardReport } from "@/types/ga4";
 
 const CHART_PROVIDERS = [
@@ -69,11 +72,15 @@ export default async function ClientDetailPage({
 
   const ga4Token = tokensByProvider.get(IntegrationProvider.GA4);
   const metaToken = tokensByProvider.get(IntegrationProvider.META_ADS);
+  const acToken = tokensByProvider.get(IntegrationProvider.ACTIVECAMPAIGN);
   const ga4Connected = Boolean(ga4Token?.isActive);
   const metaConnected = Boolean(metaToken?.isActive);
+  const acConnected = Boolean(acToken?.isActive);
 
   let ga4Report: GA4DashboardReport | null = null;
   let ga4Error: string | null = null;
+  let dealMetrics: DealMetricsReport | null = null;
+  let dealMetricsError: string | null = null;
 
   const connection = await getClientGa4Connection(
     client.id,
@@ -92,6 +99,28 @@ export default async function ClientDetailPage({
         error instanceof Error
           ? error.message
           : "Não foi possível carregar os dados do GA4.";
+    }
+  }
+
+  if (acConnected) {
+    const acConnection = await getClientActiveCampaignConnection(
+      client.id,
+      membership.company.id,
+    );
+
+    if (acConnection) {
+      try {
+        dealMetrics = await getDealMetrics(
+          acConnection.apiBaseUrl,
+          acConnection.apiToken,
+          range,
+        );
+      } catch (error) {
+        dealMetricsError =
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar os negócios do ActiveCampaign.";
+      }
     }
   }
 
@@ -161,8 +190,11 @@ export default async function ClientDetailPage({
           integrationsHref={integrationsPath}
           ga4Connected={ga4Connected}
           metaConnected={metaConnected}
+          acConnected={acConnected}
           ga4Report={ga4Report}
           ga4Error={ga4Error}
+          dealMetrics={dealMetrics}
+          dealMetricsError={dealMetricsError}
         />
       </div>
     </main>

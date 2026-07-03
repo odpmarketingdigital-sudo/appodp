@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { BarChart3, Megaphone, Users } from "lucide-react";
 
+import { CrmDealMetricsDashboard } from "@/components/crm-deal-metrics-dashboard";
 import { Ga4DashboardCharts } from "@/components/ga4-dashboard-charts";
 import { IntegrationEmptyState } from "@/components/integration-empty-state";
+import type { DealMetricsReport } from "@/types/activecampaign";
 import type { GA4DashboardReport } from "@/types/ga4";
 
 const TABS = [
@@ -19,16 +21,22 @@ type ClientAnalyticsTabsProps = {
   integrationsHref: string;
   ga4Connected: boolean;
   metaConnected: boolean;
+  acConnected: boolean;
   ga4Report: GA4DashboardReport | null;
   ga4Error: string | null;
+  dealMetrics: DealMetricsReport | null;
+  dealMetricsError: string | null;
 };
 
 export function ClientAnalyticsTabs({
   integrationsHref,
   ga4Connected,
   metaConnected,
+  acConnected,
   ga4Report,
   ga4Error,
+  dealMetrics,
+  dealMetricsError,
 }: ClientAnalyticsTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("ga4");
 
@@ -114,12 +122,30 @@ export function ClientAnalyticsTabs({
       )}
 
       {activeTab === "crm" && (
-        <IntegrationEmptyState
-          icon={Users}
-          title="CRM — integração futura"
-          description="Em breve você poderá acompanhar leads, oportunidades e vendas do RD Station e ActiveCampaign diretamente nesta aba."
-          actionLabel="Integração futura"
-        />
+        <div className="space-y-4">
+          {!acConnected && (
+            <IntegrationEmptyState
+              icon={Users}
+              title="ActiveCampaign não conectado"
+              description="Configure a URL da conta e o API Token do ActiveCampaign na página de integrações para visualizar negócios, estágios e vendedores."
+              actionLabel="Configurar Integrações"
+              actionHref={integrationsHref}
+            />
+          )}
+
+          {acConnected && dealMetricsError && (
+            <div
+              role="alert"
+              className="rounded-xl border border-red-900/50 bg-red-950/40 px-4 py-3 text-sm text-red-300"
+            >
+              {dealMetricsError}
+            </div>
+          )}
+
+          {acConnected && !dealMetricsError && dealMetrics && (
+            <CrmDealMetricsDashboard report={dealMetrics} />
+          )}
+        </div>
       )}
     </section>
   );
