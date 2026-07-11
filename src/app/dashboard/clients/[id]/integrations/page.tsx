@@ -6,10 +6,12 @@ import { IntegrationProvider } from "@/app/generated/prisma";
 import { auth } from "@/auth";
 import { Ga4PropertySelector } from "@/components/ga4-property-selector";
 import { IntegrationCard } from "@/components/integration-card";
+import { MetaAdAccountSelector } from "@/components/meta-ad-account-selector";
 import { SyncMetricsButton } from "@/components/sync-metrics-button";
 import { parseActiveCampaignMetadata } from "@/lib/activecampaign-metadata";
 import { getCurrentMembership } from "@/lib/company";
 import { clientHasGa4Token } from "@/lib/client-ga4";
+import { clientHasMetaToken } from "@/lib/client-meta";
 import { prisma } from "@/lib/prisma";
 
 const PROVIDERS = [
@@ -97,8 +99,11 @@ export default async function ClientIntegrationsPage({
   );
 
   const ga4Token = tokensByProvider.get(IntegrationProvider.GA4);
+  const metaToken = tokensByProvider.get(IntegrationProvider.META_ADS);
   const ga4Connected = Boolean(ga4Token?.isActive);
   const hasGa4Token = await clientHasGa4Token(client.id, membership.company.id);
+  const hasMetaToken = await clientHasMetaToken(client.id, membership.company.id);
+  const metaAdAccountId = metaToken?.externalAccountId ?? null;
 
   const clientBasePath = `/dashboard/clients/${client.id}`;
 
@@ -142,8 +147,10 @@ export default async function ClientIntegrationsPage({
           >
             <p className="font-medium">Integração conectada com sucesso!</p>
             <p className="mt-0.5 text-emerald-300/90">
-              As credenciais foram salvas. Selecione a propriedade GA4 abaixo,
-              se aplicável.
+              As credenciais foram salvas.
+              {integrationSuccess === "meta_ads_connected"
+                ? " Selecione a conta de anúncios Meta abaixo."
+                : " Selecione a propriedade GA4 abaixo, se aplicável."}
             </p>
           </div>
         )}
@@ -171,6 +178,23 @@ export default async function ClientIntegrationsPage({
             clientId={client.id}
             hasGa4Token={hasGa4Token}
             currentPropertyId={client.ga4PropertyId}
+          />
+        </section>
+
+        <section className="mb-8 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-zinc-100">
+              Conta de anúncios Meta Ads
+            </h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              Escolha qual conta de anúncios será monitorada neste cliente.
+            </p>
+          </div>
+          <MetaAdAccountSelector
+            clientId={client.id}
+            hasMetaToken={hasMetaToken}
+            currentAdAccountId={metaAdAccountId}
+            showOnSuccess={integrationSuccess === "meta_ads_connected"}
           />
         </section>
 

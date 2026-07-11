@@ -229,3 +229,4 @@ model MarketingMetricHistory {
   @@index([clientId, provider])
   @@map("marketing_metric_history")
 }
+

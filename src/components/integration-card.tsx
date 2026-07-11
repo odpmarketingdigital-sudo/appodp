@@ -46,7 +46,7 @@ function getOAuthConfig(
 
   if (provider === IntegrationProvider.META_ADS) {
     return {
-      url: `/api/integrations/meta/auth?clientId=${encodedClientId}`,
+      url: `/api/integrations/meta/connect?clientId=${encodedClientId}`,
       label: "Meta",
     };
   }

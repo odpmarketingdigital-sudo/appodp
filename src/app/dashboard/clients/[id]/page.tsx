@@ -19,6 +19,7 @@ import {
   resolveDateRangePreset,
 } from "@/lib/date-ranges";
 import { fetchGa4DashboardReport } from "@/lib/integrations/ga4-api";
+import { getMetaInsights } from "@/lib/integrations/meta-api";
 import { prisma } from "@/lib/prisma";
 
 import type { GA4DashboardReport } from "@/types/ga4";
@@ -73,6 +74,7 @@ export default async function ClientDetailPage({
   const ga4Connected = Boolean(ga4Token?.isActive);
   const metaConnected = Boolean(metaToken?.isActive);
   const acConnected = Boolean(acToken?.isActive);
+  const metaAccountSelected = Boolean(metaToken?.externalAccountId);
 
   let ga4Report: GA4DashboardReport | null = null;
   let ga4Error: string | null = null;
@@ -94,6 +96,24 @@ export default async function ClientDetailPage({
         error instanceof Error
           ? error.message
           : "Não foi possível carregar os dados do GA4.";
+    }
+  }
+
+  let metaInsights = null;
+  let metaError: string | null = null;
+
+  if (metaConnected && metaAccountSelected) {
+    const metaResult = await getMetaInsights(
+      client.id,
+      membership.company.id,
+      range.start,
+      range.end,
+    );
+
+    if (metaResult.ok) {
+      metaInsights = metaResult.data;
+    } else {
+      metaError = metaResult.error;
     }
   }
 
@@ -175,12 +195,15 @@ export default async function ClientDetailPage({
           integrationsHref={integrationsPath}
           ga4Connected={ga4Connected}
           metaConnected={metaConnected}
+          metaAccountSelected={metaAccountSelected}
           acConnected={acConnected}
           acPipelineSelected={acPipelineSelected}
           crmMetricsKey={`${range.start}-${range.end}`}
           crmMetricsContent={crmMetricsContent}
           ga4Report={ga4Report}
           ga4Error={ga4Error}
+          metaInsights={metaInsights}
+          metaError={metaError}
         />
       </div>
     </main>

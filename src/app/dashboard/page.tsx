@@ -122,7 +122,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             </p>
             <p className="mt-2 text-xs text-zinc-500">
               Configure o GA4 e selecione a propriedade em cada cliente em
-              Configurar Integrações.
+              Configurar Integrações. Para Meta Ads, conecte e selecione a conta
+              de anúncios por cliente na mesma página.
             </p>
           </div>
         )}

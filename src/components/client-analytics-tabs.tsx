@@ -7,7 +7,9 @@ import { CrmDealMetricsSkeleton } from "@/components/crm-deal-metrics-skeleton";
 import { DashboardDateRange } from "@/components/dashboard-date-range";
 import { Ga4DashboardCharts } from "@/components/ga4-dashboard-charts";
 import { IntegrationEmptyState } from "@/components/integration-empty-state";
+import { MetaDashboardSummary } from "@/components/meta-dashboard-summary";
 import type { GA4DashboardReport } from "@/types/ga4";
+import type { MetaInsightsSummary } from "@/types/meta";
 
 const TABS = [
   { id: "ga4", label: "Google Analytics 4", icon: BarChart3 },
@@ -22,12 +24,15 @@ type ClientAnalyticsTabsProps = {
   integrationsHref: string;
   ga4Connected: boolean;
   metaConnected: boolean;
+  metaAccountSelected: boolean;
   acConnected: boolean;
   acPipelineSelected: boolean;
   crmMetricsKey: string;
   crmMetricsContent: ReactNode | null;
   ga4Report: GA4DashboardReport | null;
   ga4Error: string | null;
+  metaInsights: MetaInsightsSummary | null;
+  metaError: string | null;
 };
 
 export function ClientAnalyticsTabs({
@@ -35,12 +40,15 @@ export function ClientAnalyticsTabs({
   integrationsHref,
   ga4Connected,
   metaConnected,
+  metaAccountSelected,
   acConnected,
   acPipelineSelected,
   crmMetricsKey,
   crmMetricsContent,
   ga4Report,
   ga4Error,
+  metaInsights,
+  metaError,
 }: ClientAnalyticsTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("ga4");
 
@@ -116,17 +124,48 @@ export function ClientAnalyticsTabs({
         )}
 
         {activeTab === "meta" && (
-          <IntegrationEmptyState
-            icon={Megaphone}
-            title={metaConnected ? "Meta Ads — em breve" : "Conecte sua conta do Meta"}
-            description={
-              metaConnected
-                ? "A conta está conectada. Os gráficos detalhados de campanhas, alcance e custo serão exibidos aqui em uma próxima atualização."
-                : "Conecte o Meta Ads na página de integrações para preparar este painel com métricas de Facebook e Instagram."
-            }
-            actionLabel="Configurar Integrações"
-            actionHref={integrationsHref}
-          />
+          <div className="space-y-4">
+            {!metaConnected && (
+              <IntegrationEmptyState
+                icon={Megaphone}
+                title="Conecte sua conta do Meta"
+                description="Conecte o Meta Ads na página de integrações deste cliente para visualizar investimento, impressões, cliques e CTR."
+                actionLabel="Configurar Integrações"
+                actionHref={integrationsHref}
+              />
+            )}
+
+            {metaConnected && !metaAccountSelected && (
+              <IntegrationEmptyState
+                icon={Megaphone}
+                title="Selecione a conta de anúncios"
+                description="A conexão com o Meta foi concluída. Escolha a conta de anúncios na página de integrações para carregar as métricas."
+                actionLabel="Selecionar conta"
+                actionHref={integrationsHref}
+              />
+            )}
+
+            {metaConnected && metaAccountSelected && metaError && (
+              <div
+                role="alert"
+                className="rounded-xl border border-red-900/50 bg-red-950/40 px-4 py-3 text-sm text-red-300"
+              >
+                {metaError}
+              </div>
+            )}
+
+            {metaConnected && metaAccountSelected && !metaError && !metaInsights && (
+              <IntegrationEmptyState
+                icon={Megaphone}
+                title="Aguardando dados do Meta"
+                description="Não foi possível carregar métricas para o período selecionado."
+                actionLabel="Configurar Integrações"
+                actionHref={integrationsHref}
+              />
+            )}
+
+            {metaInsights && <MetaDashboardSummary insights={metaInsights} />}
+          </div>
         )}
 
         {activeTab === "crm" && (
