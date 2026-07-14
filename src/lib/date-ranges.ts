@@ -5,6 +5,7 @@ import type { DateRange } from "@/types/integrations";
 export type DateRangePreset =
   | "today"
   | "yesterday"
+  | "last7"
   | "last30"
   | "last60";
 
@@ -14,6 +15,7 @@ export const DATE_RANGE_PRESETS: {
 }[] = [
   { id: "today", label: "Hoje" },
   { id: "yesterday", label: "Ontem" },
+  { id: "last7", label: "7 Dias" },
   { id: "last30", label: "30 Dias" },
   { id: "last60", label: "60 Dias" },
 ];
@@ -33,6 +35,8 @@ export function resolveDateRangePreset(preset: DateRangePreset): DateRange {
       const yesterday = subDays(today, 1);
       return { start: toIsoDate(yesterday), end: toIsoDate(yesterday) };
     }
+    case "last7":
+      return { start: toIsoDate(subDays(today, 6)), end: toIsoDate(today) };
     case "last30":
       return { start: toIsoDate(subDays(today, 29)), end: toIsoDate(today) };
     case "last60":
@@ -48,6 +52,7 @@ export function parseDateRangePreset(
   if (
     value === "today" ||
     value === "yesterday" ||
+    value === "last7" ||
     value === "last30" ||
     value === "last60"
   ) {
@@ -55,9 +60,6 @@ export function parseDateRangePreset(
   }
 
   // Compatibilidade com URLs antigas.
-  if (value === "last7") {
-    return "last30";
-  }
   if (value === "last90") {
     return "last60";
   }
