@@ -53,32 +53,34 @@ export function ClientAnalyticsTabs({
   const [activeTab, setActiveTab] = useState<TabId>("ga4");
 
   return (
-    <section>
-      <div className="inline-flex flex-wrap gap-1 rounded-full border border-zinc-800 bg-zinc-950 p-1">
-        {TABS.map(({ id, label, icon: Icon }) => {
-          const isActive = activeTab === id;
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setActiveTab(id)}
-              className={
-                isActive
-                  ? "inline-flex items-center gap-2 rounded-full bg-zinc-700 px-4 py-2 text-xs font-medium text-zinc-100"
-                  : "inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-200"
-              }
-            >
-              <Icon className="h-3.5 w-3.5" aria-hidden />
-              {label}
-            </button>
-          );
-        })}
-      </div>
+    <section className="min-w-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="-mx-1 max-w-full overflow-x-auto px-1 pb-1 sm:mx-0 sm:overflow-visible sm:px-0 sm:pb-0">
+          <div className="inline-flex min-w-max gap-1 rounded-full border border-zinc-800 bg-zinc-950 p-1">
+            {TABS.map(({ id, label, icon: Icon }) => {
+              const isActive = activeTab === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setActiveTab(id)}
+                  className={
+                    isActive
+                      ? "inline-flex items-center gap-1.5 rounded-full bg-zinc-700 px-3 py-2 text-xs font-medium text-zinc-100 sm:gap-2 sm:px-4"
+                      : "inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-200 sm:gap-2 sm:px-4"
+                  }
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span className="whitespace-nowrap sm:inline">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-      <div className="mt-4 flex justify-end">
         <Suspense
           fallback={
-            <div className="h-9 w-48 animate-pulse rounded-full bg-zinc-800" />
+            <div className="h-9 w-full max-w-xs animate-pulse rounded-full bg-zinc-800 sm:w-48" />
           }
         >
           <DashboardDateRange basePath={basePath} />

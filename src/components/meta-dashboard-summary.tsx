@@ -52,7 +52,7 @@ export function MetaDashboardSummary({
   ];
 
   return (
-    <section className="space-y-4">
+    <section className="min-w-0 space-y-4">
       <div>
         <h3 className="text-base font-semibold text-zinc-100">
           {variant === "agency" ? "Meta Ads — visão geral" : "Meta Ads"}
@@ -68,7 +68,7 @@ export function MetaDashboardSummary({
           return (
             <div
               key={card.label}
-              className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5"
+              className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
@@ -76,7 +76,7 @@ export function MetaDashboardSummary({
                 </span>
                 <Icon className={`h-4 w-4 ${card.accent}`} aria-hidden />
               </div>
-              <p className="mt-3 text-2xl font-semibold tracking-tight text-zinc-100">
+              <p className="mt-3 break-words text-xl font-semibold tracking-tight text-zinc-100 sm:text-2xl">
                 {card.value}
               </p>
               <p className="mt-1 text-xs text-zinc-500">{card.hint}</p>

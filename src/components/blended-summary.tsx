@@ -103,9 +103,9 @@ export function BlendedSummary({ channels }: BlendedSummaryProps) {
   ];
 
   return (
-    <section className="mb-10">
+    <section className="mb-8 min-w-0 sm:mb-10">
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-zinc-100">
+        <h2 className="text-base font-semibold text-zinc-100 sm:text-lg">
           Visão consolidada
         </h2>
         <p className="text-sm text-zinc-400">
@@ -119,7 +119,7 @@ export function BlendedSummary({ channels }: BlendedSummaryProps) {
           return (
             <div
               key={card.label}
-              className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5"
+              className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
@@ -127,7 +127,7 @@ export function BlendedSummary({ channels }: BlendedSummaryProps) {
                 </span>
                 <Icon className={`h-4 w-4 ${card.accent}`} aria-hidden />
               </div>
-              <p className="mt-3 text-2xl font-semibold tracking-tight text-zinc-100">
+              <p className="mt-3 break-words text-xl font-semibold tracking-tight text-zinc-100 sm:text-2xl">
                 {card.value}
               </p>
               <p className="mt-1 text-xs text-zinc-500">{card.hint}</p>

@@ -27,7 +27,8 @@ export function DashboardDateRange({
   }
 
   return (
-    <div className="inline-flex flex-wrap gap-1 rounded-full border border-zinc-800 bg-zinc-950 p-1">
+    <div className="w-full max-w-full overflow-x-auto">
+      <div className="inline-flex min-w-max flex-wrap gap-1 rounded-full border border-zinc-800 bg-zinc-950 p-1">
       {DATE_RANGE_PRESETS.map((preset) => {
         const isActive = preset.id === current;
         return (
@@ -45,6 +46,7 @@ export function DashboardDateRange({
           </button>
         );
       })}
+      </div>
     </div>
   );
 }

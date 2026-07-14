@@ -50,7 +50,7 @@ export function Ga4DashboardCharts({
   const isClientView = variant === "client";
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-full space-y-4 sm:space-y-6">
       {isClientView && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <SummaryCard
@@ -76,7 +76,7 @@ export function Ga4DashboardCharts({
 
       {isClientView && (
         <ChartCard title="Evolução temporal" subtitle="Métricas diárias do GA4">
-          <div className="h-80 w-full">
+          <div className="h-64 w-full min-w-0 sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={timeline}
@@ -108,10 +108,10 @@ export function Ga4DashboardCharts({
                 />
                 <YAxis
                   stroke="#52525b"
-                  tick={{ fill: "#a1a1aa", fontSize: 12 }}
+                  tick={{ fill: "#a1a1aa", fontSize: 11 }}
                   tickLine={false}
                   axisLine={false}
-                  width={48}
+                  width={40}
                   tickFormatter={(v: number) => numberFormatter.format(v)}
                 />
                 <Tooltip content={<DarkTooltip />} />
@@ -141,23 +141,23 @@ export function Ga4DashboardCharts({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ChartCard title="Top cidades" subtitle="Por visitas (activeUsers)">
           {cities.length > 0 ? (
-            <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-64 w-full min-w-0 overflow-x-auto sm:h-72">
+              <ResponsiveContainer width="100%" height="100%" minWidth={280}>
                 <BarChart
                   data={cities}
                   layout="vertical"
-                  margin={{ left: 8, right: 16 }}
+                  margin={{ left: 4, right: 8 }}
                 >
                   <CartesianGrid stroke="#27272a" horizontal={false} />
                   <XAxis
                     type="number"
-                    tick={{ fill: "#a1a1aa", fontSize: 11 }}
+                    tick={{ fill: "#a1a1aa", fontSize: 10 }}
                   />
                   <YAxis
                     type="category"
                     dataKey="label"
-                    width={100}
-                    tick={{ fill: "#a1a1aa", fontSize: 11 }}
+                    width={72}
+                    tick={{ fill: "#a1a1aa", fontSize: 10 }}
                   />
                   <Tooltip content={<DarkTooltip />} />
                   <Bar
@@ -176,7 +176,7 @@ export function Ga4DashboardCharts({
 
         <ChartCard title="Canais de tráfego" subtitle="sessionSourceMedium">
           {channels.length > 0 ? (
-            <div className="h-72 w-full">
+            <div className="h-64 w-full min-w-0 sm:h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -184,9 +184,9 @@ export function Ga4DashboardCharts({
                     dataKey="activeUsers"
                     nameKey="label"
                     cx="50%"
-                    cy="50%"
-                    innerRadius={52}
-                    outerRadius={88}
+                    cy="45%"
+                    innerRadius={40}
+                    outerRadius={72}
                     paddingAngle={2}
                   >
                     {channels.map((_, index) => (
@@ -197,7 +197,11 @@ export function Ga4DashboardCharts({
                     ))}
                   </Pie>
                   <Tooltip content={<DarkTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: "#a1a1aa" }} />
+                  <Legend
+                    wrapperStyle={{ fontSize: 10, color: "#a1a1aa" }}
+                    layout="horizontal"
+                    verticalAlign="bottom"
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -222,9 +226,9 @@ function SummaryCard({
   color: string;
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5">
       <p className="text-sm text-zinc-400">{label}</p>
-      <p className="mt-2 text-3xl font-semibold text-zinc-100">
+      <p className="mt-2 text-2xl font-semibold text-zinc-100 sm:text-3xl">
         {numberFormatter.format(value)}
       </p>
       <p className="mt-1 text-xs text-zinc-500">{hint}</p>
@@ -246,7 +250,7 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+    <section className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5">
       <header className="mb-4">
         <h2 className="text-sm font-semibold text-zinc-100">{title}</h2>
         <p className="text-xs text-zinc-500">{subtitle}</p>

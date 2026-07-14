@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
+import { BrandLogo } from "@/components/brand-logo";
 import { CredentialsLoginForm } from "@/components/credentials-login-form";
 
 function firstParam(value: string | string[] | undefined): string | undefined {
@@ -21,13 +22,11 @@ export default async function LoginPage({
   const reset = firstParam((await searchParams).reset);
 
   return (
-    <main className="flex min-h-screen flex-1 items-center justify-center bg-zinc-950 px-6">
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-950 p-8 shadow-sm">
+    <main className="flex min-h-screen flex-1 items-center justify-center bg-zinc-950 px-4 py-6 sm:px-6">
+      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-sm sm:p-8">
         <header className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">
-            AppODP
-          </h1>
-          <p className="mt-2 text-sm text-zinc-400">
+          <BrandLogo className="mx-auto h-12 w-auto" priority />
+          <p className="mt-4 text-sm text-zinc-400">
             Entre com seu e-mail ou continue com o Google.
           </p>
         </header>

@@ -111,9 +111,9 @@ export function IntegrationCard({
   const fieldConfig = getManualFieldConfig(provider);
 
   return (
-    <div className="flex flex-col rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+    <div className="flex min-w-0 flex-col rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h3 className="text-sm font-semibold text-zinc-100">{label}</h3>
           <p className="mt-1 text-xs text-zinc-400">{description}</p>
         </div>
@@ -150,7 +150,7 @@ export function IntegrationCard({
       {oauth ? (
         <a
           href={oauth.url}
-          className="mt-4 inline-flex items-center justify-center self-start rounded-full border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800"
+          className="mt-4 inline-flex w-full items-center justify-center self-stretch rounded-full border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800 sm:w-auto sm:self-start"
         >
           {connected
             ? `Reconectar com ${oauth.label}`
@@ -160,7 +160,7 @@ export function IntegrationCard({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="mt-4 inline-flex items-center justify-center self-start rounded-full border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800"
+          className="mt-4 inline-flex w-full items-center justify-center self-stretch rounded-full border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800 sm:w-auto sm:self-start"
         >
           {connected ? "Editar credenciais" : "Conectar"}
         </button>

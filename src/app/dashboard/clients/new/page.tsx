@@ -11,10 +11,10 @@ export default async function NewClientPage() {
   }
 
   return (
-    <main className="flex-1 p-6">
+    <main className="flex-1 overflow-x-hidden p-4 sm:p-6">
       <div className="mx-auto w-full max-w-2xl">
-        <header className="mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <header className="mb-6 sm:mb-8">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-2xl">
             Novo cliente
           </h1>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
@@ -22,7 +22,7 @@ export default async function NewClientPage() {
           </p>
         </header>
 
-        <section className="rounded-2xl border border-black/5 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
+        <section className="rounded-2xl border border-black/5 bg-white p-4 shadow-sm sm:p-6 dark:border-white/10 dark:bg-zinc-950">
           <ClientForm />
         </section>
       </div>

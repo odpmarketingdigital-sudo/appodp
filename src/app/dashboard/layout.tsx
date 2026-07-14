@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
-import { Navbar } from "@/components/navbar";
-import { Sidebar } from "@/components/sidebar";
+import { DashboardShell } from "@/components/dashboard-shell";
 import { getCurrentMembership } from "@/lib/company";
 
 export default async function DashboardLayout({
@@ -17,13 +16,5 @@ export default async function DashboardLayout({
   const membership = await getCurrentMembership(session.user.id);
   const agencyName = membership?.company.name ?? "Minha Empresa";
 
-  return (
-    <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Navbar agencyName={agencyName} />
-        {children}
-      </div>
-    </div>
-  );
+  return <DashboardShell agencyName={agencyName}>{children}</DashboardShell>;
 }

@@ -16,8 +16,8 @@ export default async function ResetPasswordPage({
   const valid = await isPasswordResetTokenValid(token);
 
   return (
-    <main className="flex min-h-screen flex-1 items-center justify-center bg-zinc-950 px-6">
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-950 p-8 shadow-sm">
+    <main className="flex min-h-screen flex-1 items-center justify-center bg-zinc-950 px-4 py-6 sm:px-6">
+      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-sm sm:p-8">
         <header className="mb-8 text-center">
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">
             Nova senha

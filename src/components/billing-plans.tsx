@@ -45,7 +45,7 @@ export function BillingPlans() {
         . Cancele quando quiser.
       </p>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 grid-cols-1 md:grid-cols-3">
         {STRIPE_PLANS.map((plan) => (
           <div
             key={plan.id}

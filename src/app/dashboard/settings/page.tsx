@@ -34,8 +34,8 @@ export default async function SettingsPage({
 
   if (membership?.role === CompanyRole.MEMBER) {
     return (
-      <main className="flex-1 p-6">
-        <div className="mx-auto flex w-full max-w-2xl flex-col items-center justify-center rounded-2xl border border-black/5 bg-white p-12 text-center shadow-sm dark:border-white/10 dark:bg-zinc-950">
+      <main className="flex-1 overflow-x-hidden p-4 sm:p-6">
+        <div className="mx-auto flex w-full max-w-2xl flex-col items-center justify-center rounded-2xl border border-black/5 bg-white p-8 text-center shadow-sm sm:p-12 dark:border-white/10 dark:bg-zinc-950">
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
             <Lock
               className="h-6 w-6 text-zinc-500 dark:text-zinc-400"
@@ -68,10 +68,10 @@ export default async function SettingsPage({
   const isSubscribed = isActiveStatus(subscription?.status);
 
   return (
-    <main className="flex-1 p-6">
+    <main className="flex-1 overflow-x-hidden p-4 sm:p-6">
       <div className="mx-auto w-full max-w-2xl">
-        <header className="mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <header className="mb-6 sm:mb-8">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-2xl">
             Configurações da empresa
           </h1>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
@@ -101,7 +101,7 @@ export default async function SettingsPage({
           </div>
         )}
 
-        <section className="rounded-2xl border border-black/5 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
+        <section className="rounded-2xl border border-black/5 bg-white p-4 shadow-sm sm:p-6 dark:border-white/10 dark:bg-zinc-950">
           {membership ? (
             <CompanyForm
               company={{
@@ -117,7 +117,7 @@ export default async function SettingsPage({
           )}
         </section>
 
-        <section className="mt-6 rounded-2xl border border-black/5 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
+        <section className="mt-6 rounded-2xl border border-black/5 bg-white p-4 shadow-sm sm:p-6 dark:border-white/10 dark:bg-zinc-950">
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
               Plano e faturamento

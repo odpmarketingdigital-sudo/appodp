@@ -165,11 +165,11 @@ export default async function ClientDetailPage({
   }));
 
   return (
-    <main className="flex-1 p-6">
+    <main className="flex-1 overflow-x-hidden p-4 sm:p-6">
       <div className="mx-auto w-full max-w-4xl">
-        <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
+        <header className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-semibold tracking-tight text-zinc-100 sm:text-2xl">
               {client.name}
             </h1>
             <p className="mt-1 text-sm text-zinc-400">
@@ -180,7 +180,7 @@ export default async function ClientDetailPage({
           <div className="flex flex-col items-start gap-3 sm:items-end">
             <Link
               href={integrationsPath}
-              className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-800"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-800 sm:w-auto"
             >
               <Settings className="h-4 w-4" aria-hidden />
               Configurar Integrações

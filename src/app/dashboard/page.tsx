@@ -47,11 +47,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   }
 
   return (
-    <main className="flex-1 p-6">
-      <div className="mx-auto w-full max-w-6xl space-y-8">
+    <main className="flex-1 overflow-x-hidden p-4 sm:p-6">
+      <div className="mx-auto w-full max-w-6xl space-y-6 sm:space-y-8">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold tracking-tight text-zinc-100 sm:text-2xl">
               Visão Geral
             </h1>
             <p className="mt-1 text-sm text-zinc-400">
@@ -68,7 +68,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </header>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <span className="text-sm text-zinc-400">Total de Clientes</span>
               <Users className="h-5 w-5 text-zinc-500" aria-hidden />
@@ -81,23 +81,23 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
           {ga4Report && (
             <>
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5">
                 <span className="text-sm text-zinc-400">Visitas (GA4)</span>
-                <p className="mt-3 text-3xl font-semibold text-blue-400">
+                <p className="mt-3 text-2xl font-semibold text-blue-400 sm:text-3xl">
                   {ga4Report.summary.activeUsers.toLocaleString("pt-BR")}
                 </p>
                 <p className="mt-1 text-xs text-zinc-500">activeUsers</p>
               </div>
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5">
                 <span className="text-sm text-zinc-400">Sessões engajadas</span>
-                <p className="mt-3 text-3xl font-semibold text-emerald-400">
+                <p className="mt-3 text-2xl font-semibold text-emerald-400 sm:text-3xl">
                   {ga4Report.summary.engagedSessions.toLocaleString("pt-BR")}
                 </p>
                 <p className="mt-1 text-xs text-zinc-500">engagedSessions</p>
               </div>
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5">
                 <span className="text-sm text-zinc-400">Eventos</span>
-                <p className="mt-3 text-3xl font-semibold text-violet-400">
+                <p className="mt-3 text-2xl font-semibold text-violet-400 sm:text-3xl">
                   {ga4Report.summary.eventCount.toLocaleString("pt-BR")}
                 </p>
                 <p className="mt-1 text-xs text-zinc-500">eventCount</p>

@@ -63,9 +63,9 @@ export default async function AdminPage() {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-50 sm:text-2xl">
           Visão global do sistema
         </h1>
         <p className="mt-1 text-sm text-zinc-400">
@@ -74,22 +74,22 @@ export default async function AdminPage() {
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-6">
           <p className="text-sm text-zinc-400">Total de usuários</p>
-          <p className="mt-2 text-3xl font-semibold text-zinc-50">
+          <p className="mt-2 text-2xl font-semibold text-zinc-50 sm:text-3xl">
             {totalUsers}
           </p>
         </div>
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-6">
           <p className="text-sm text-zinc-400">Total de agências</p>
-          <p className="mt-2 text-3xl font-semibold text-zinc-50">
+          <p className="mt-2 text-2xl font-semibold text-zinc-50 sm:text-3xl">
             {totalCompanies}
           </p>
         </div>
       </div>
 
       <section className="overflow-hidden rounded-2xl border border-zinc-800">
-        <div className="border-b border-zinc-800 px-5 py-4">
+        <div className="border-b border-zinc-800 px-4 py-4 sm:px-5">
           <h2 className="text-sm font-semibold text-zinc-100">
             Usuários cadastrados
           </h2>

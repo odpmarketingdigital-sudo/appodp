@@ -29,7 +29,7 @@ function BreakdownTable({
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5">
       <h3 className="text-sm font-semibold text-zinc-100">{title}</h3>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full min-w-[280px] text-left text-sm">
@@ -127,7 +127,7 @@ function OwnersAccordion({ owners }: { owners: DealMetricsOwnerRow[] }) {
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4 sm:p-5">
       <h3 className="text-sm font-semibold text-zinc-100">
         Desempenho por vendedor
       </h3>
@@ -148,34 +148,34 @@ export function CrmDealMetricsDashboard({ report }: CrmDealMetricsDashboardProps
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5">
           <span className="text-sm text-zinc-400">Negócios</span>
-          <p className="mt-3 text-3xl font-semibold text-zinc-100">
+          <p className="mt-3 text-2xl font-semibold text-zinc-100 sm:text-3xl">
             {numberFormatter.format(kpis.totalCount)}
           </p>
         </div>
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5">
           <span className="text-sm text-zinc-400">Valor total</span>
-          <p className="mt-3 text-3xl font-semibold text-emerald-400">
+          <p className="mt-3 break-words text-2xl font-semibold text-emerald-400 sm:text-3xl">
             {currencyFormatter.format(kpis.totalValue)}
           </p>
         </div>
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5">
           <span className="text-sm text-zinc-400">Ganhos</span>
-          <p className="mt-3 text-3xl font-semibold text-blue-400">
+          <p className="mt-3 text-2xl font-semibold text-blue-400 sm:text-3xl">
             {numberFormatter.format(kpis.winCount)}
           </p>
         </div>
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5">
           <span className="text-sm text-zinc-400">Perdidos</span>
-          <p className="mt-3 text-3xl font-semibold text-red-400">
+          <p className="mt-3 text-2xl font-semibold text-red-400 sm:text-3xl">
             {numberFormatter.format(kpis.loseCount)}
           </p>
         </div>
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5 sm:col-span-2 md:col-span-1">
           <span className="text-sm text-zinc-400">Ticket médio</span>
-          <p className="mt-3 text-3xl font-semibold text-violet-400">
+          <p className="mt-3 break-words text-2xl font-semibold text-violet-400 sm:text-3xl">
             {currencyFormatter.format(kpis.ticketMedio)}
           </p>
         </div>

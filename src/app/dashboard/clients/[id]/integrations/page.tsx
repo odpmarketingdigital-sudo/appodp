@@ -108,7 +108,7 @@ export default async function ClientIntegrationsPage({
   const clientBasePath = `/dashboard/clients/${client.id}`;
 
   return (
-    <main className="flex-1 p-6">
+    <main className="flex-1 overflow-x-hidden p-4 sm:p-6">
       <div className="mx-auto w-full max-w-4xl">
         <Link
           href={clientBasePath}
@@ -118,8 +118,8 @@ export default async function ClientIntegrationsPage({
           Voltar ao cliente
         </Link>
 
-        <header className="mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
+        <header className="mb-6 sm:mb-8">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-100 sm:text-2xl">
             Integrações — {client.name}
           </h1>
           <p className="mt-1 text-sm text-zinc-400">
@@ -155,8 +155,8 @@ export default async function ClientIntegrationsPage({
           </div>
         )}
 
-        <section className="mb-8 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:mb-8 sm:p-6">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-zinc-100">
                 Propriedade Google Analytics 4
@@ -181,7 +181,7 @@ export default async function ClientIntegrationsPage({
           />
         </section>
 
-        <section className="mb-8 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+        <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:mb-8 sm:p-6">
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-zinc-100">
               Conta de anúncios Meta Ads

@@ -106,9 +106,10 @@ export function MetricsChart({ channels }: MetricsChartProps) {
   const data = channel?.data ?? [];
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+    <div className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5">
       {/* Seletor de canal (provedor) */}
-      <div className="mb-4 inline-flex rounded-full border border-zinc-800 bg-zinc-950 p-1">
+      <div className="mb-4 max-w-full overflow-x-auto">
+        <div className="inline-flex min-w-max flex-wrap gap-1 rounded-full border border-zinc-800 bg-zinc-950 p-1">
         {channels.map((c) => {
           const isActive = c.provider === activeChannel;
           return (
@@ -126,6 +127,7 @@ export function MetricsChart({ channels }: MetricsChartProps) {
             </button>
           );
         })}
+        </div>
       </div>
 
       {data.length === 0 ? (
@@ -160,7 +162,7 @@ export function MetricsChart({ channels }: MetricsChartProps) {
             })}
           </div>
 
-          <div className="h-72 w-full">
+          <div className="h-64 w-full min-w-0 sm:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={data}
@@ -202,10 +204,10 @@ export function MetricsChart({ channels }: MetricsChartProps) {
                 />
                 <YAxis
                   stroke="#52525b"
-                  tick={{ fill: "#a1a1aa", fontSize: 12 }}
+                  tick={{ fill: "#a1a1aa", fontSize: 11 }}
                   tickLine={false}
                   axisLine={false}
-                  width={56}
+                  width={48}
                   tickFormatter={(value: number) =>
                     metric.currency
                       ? currencyFormatter.format(value)

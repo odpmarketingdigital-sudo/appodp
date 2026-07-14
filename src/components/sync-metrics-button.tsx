@@ -29,14 +29,14 @@ export function SyncMetricsButton({
   );
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex w-full flex-col items-stretch gap-1 sm:w-auto sm:items-end">
       <form action={formAction}>
         <input type="hidden" name="clientId" value={clientId} />
         <input type="hidden" name="provider" value={provider} />
         <button
           type="submit"
           disabled={pending || disabled}
-          className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           <RefreshCw
             className={pending ? "h-4 w-4 animate-spin" : "h-4 w-4"}

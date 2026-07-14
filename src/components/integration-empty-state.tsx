@@ -20,7 +20,7 @@ export function IntegrationEmptyState({
   actionHref,
 }: IntegrationEmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/40 px-8 py-16 text-center">
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/40 px-4 py-12 text-center sm:px-8 sm:py-16">
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900">
         <Icon className="h-7 w-7 text-zinc-500" aria-hidden />
       </div>

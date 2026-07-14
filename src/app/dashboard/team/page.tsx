@@ -36,7 +36,7 @@ export default async function TeamPage() {
   const membership = await getCurrentMembership(session.user.id);
   if (!membership) {
     return (
-      <main className="flex-1 p-6">
+      <main className="flex-1 overflow-x-hidden p-4 sm:p-6">
         <div className="mx-auto w-full max-w-3xl">
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             Nenhuma empresa associada ao seu usuário.
@@ -60,10 +60,10 @@ export default async function TeamPage() {
   });
 
   return (
-    <main className="flex-1 p-6">
+    <main className="flex-1 overflow-x-hidden p-4 sm:p-6">
       <div className="mx-auto w-full max-w-3xl">
-        <header className="mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <header className="mb-6 sm:mb-8">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-2xl">
             Time
           </h1>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
@@ -76,7 +76,7 @@ export default async function TeamPage() {
         </header>
 
         {canManage && (
-          <section className="mb-6 rounded-2xl border border-black/5 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
+          <section className="mb-6 rounded-2xl border border-black/5 bg-white p-4 shadow-sm sm:p-6 dark:border-white/10 dark:bg-zinc-950">
             <h2 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               Convidar novo membro
             </h2>
@@ -94,7 +94,7 @@ export default async function TeamPage() {
               return (
                 <li
                   key={member.id}
-                  className="flex items-center justify-between gap-4 px-5 py-4"
+                  className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5"
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
@@ -117,7 +117,7 @@ export default async function TeamPage() {
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-3">
+                  <div className="flex w-full shrink-0 flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
                     <span
                       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${ROLE_BADGE[member.role]}`}
                     >
