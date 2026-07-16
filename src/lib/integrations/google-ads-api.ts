@@ -1,8 +1,12 @@
+import { IntegrationProvider } from "@/app/generated/prisma";
 import type { GoogleAdsCustomerOption, GoogleAdsCustomersListResult } from "@/types/google-ads";
 
-/** Versão REST ativa (v17/v18 descontinuadas). Override: GOOGLE_ADS_API_VERSION=v20 */
+/** Versão REST ativa. Override: GOOGLE_ADS_API_VERSION=v22 (ou 22) */
+const DEFAULT_GOOGLE_ADS_API_VERSION = "v22";
+
 function resolveGoogleAdsApiVersion(): string {
-  const raw = process.env.GOOGLE_ADS_API_VERSION?.trim() ?? "v20";
+  const raw =
+    process.env.GOOGLE_ADS_API_VERSION?.trim() ?? DEFAULT_GOOGLE_ADS_API_VERSION;
   return raw.startsWith("v") ? raw : `v${raw}`;
 }
 
@@ -13,8 +17,20 @@ export const GOOGLE_ANALYTICS_SCOPE =
   "https://www.googleapis.com/auth/analytics.readonly";
 export const GOOGLE_ADS_SCOPE = "https://www.googleapis.com/auth/adwords";
 
-/** Escopos combinados para OAuth Google (Analytics + Ads). */
+/** Escopos combinados (legado — não usar em novos fluxos OAuth). */
 export const GOOGLE_INTEGRATION_SCOPES = `${GOOGLE_ANALYTICS_SCOPE} ${GOOGLE_ADS_SCOPE}`;
+
+type GoogleOAuthProvider =
+  | typeof IntegrationProvider.GA4
+  | typeof IntegrationProvider.GOOGLE_ADS;
+
+export function getGoogleOAuthScopesForProvider(
+  provider: GoogleOAuthProvider,
+): string {
+  return provider === IntegrationProvider.GA4
+    ? GOOGLE_ANALYTICS_SCOPE
+    : GOOGLE_ADS_SCOPE;
+}
 
 type ListAccessibleCustomersResponse = {
   resourceNames?: string[];

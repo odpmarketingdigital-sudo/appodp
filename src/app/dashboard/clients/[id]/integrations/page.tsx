@@ -61,6 +61,8 @@ const INTEGRATION_ERROR_MESSAGES: Record<string, string> = {
     "Não foi possível listar as contas do Google Ads. Verifique o developer token e as permissões da conta.",
   google_ads_scope_missing:
     "O Google não concedeu o escopo do Google Ads. Tente conectar novamente e aceite todas as permissões.",
+  ga4_scope_missing:
+    "O Google não concedeu o escopo do Analytics. Tente conectar novamente com a conta GA4 correta.",
   forbidden: "Você não tem permissão para gerenciar este cliente.",
 };
 

@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { IntegrationProvider } from "@/app/generated/prisma";
 import { auth } from "@/auth";
 import { getCurrentMembership } from "@/lib/company";
-import { GOOGLE_INTEGRATION_SCOPES } from "@/lib/integrations/google-ads-api";
+import { getGoogleOAuthScopesForProvider } from "@/lib/integrations/google-ads-api";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   authUrl.searchParams.set("client_id", googleClientId);
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("scope", GOOGLE_INTEGRATION_SCOPES);
+  authUrl.searchParams.set("scope", getGoogleOAuthScopesForProvider(provider));
   authUrl.searchParams.set("access_type", "offline");
   authUrl.searchParams.set("prompt", "consent");
   authUrl.searchParams.set("include_granted_scopes", "true");

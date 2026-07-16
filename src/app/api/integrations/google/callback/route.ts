@@ -77,6 +77,20 @@ function redirectAndClear(request: NextRequest, target: URL): NextResponse {
   return response;
 }
 
+async function persistGa4Integration(
+  clientId: string,
+  tokens: TokenPayload,
+): Promise<void> {
+  await upsertIntegrationToken({
+    clientId,
+    provider: IntegrationProvider.GA4,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    expiresAt: tokens.expiresAt,
+    scope: tokens.scope,
+  });
+}
+
 async function persistGoogleAdsIntegration(
   clientId: string,
   tokens: TokenPayload,
@@ -217,40 +231,25 @@ export async function GET(request: NextRequest): Promise<Response> {
     scope: tokens.scope ?? null,
   };
 
-  await upsertIntegrationToken({
-    clientId: context.clientId,
-    provider,
-    accessToken: tokenPayload.accessToken,
-    refreshToken: tokenPayload.refreshToken,
-    expiresAt: tokenPayload.expiresAt,
-    scope: tokenPayload.scope,
-  });
+  // Cada fluxo OAuth salva APENAS no provider iniciado (GA4 ≠ GOOGLE_ADS).
+  if (provider === IntegrationProvider.GA4) {
+    if (!hasGoogleAnalyticsScope(tokenPayload.scope)) {
+      return redirectAndClear(request, errorUrl("ga4_scope_missing"));
+    }
+    await persistGa4Integration(context.clientId, tokenPayload);
+  } else {
+    if (!hasGoogleAdsScope(tokenPayload.scope)) {
+      return redirectAndClear(request, errorUrl("google_ads_scope_missing"));
+    }
 
-  if (
-    hasGoogleAnalyticsScope(tokenPayload.scope) &&
-    provider === IntegrationProvider.GOOGLE_ADS
-  ) {
-    await upsertIntegrationToken({
-      clientId: context.clientId,
-      provider: IntegrationProvider.GA4,
-      accessToken: tokenPayload.accessToken,
-      refreshToken: tokenPayload.refreshToken,
-      expiresAt: tokenPayload.expiresAt,
-      scope: tokenPayload.scope,
-    });
-  }
-
-  if (hasGoogleAdsScope(tokenPayload.scope)) {
     const adsResult = await persistGoogleAdsIntegration(
       context.clientId,
       tokenPayload,
     );
 
-    if (!adsResult.ok && provider === IntegrationProvider.GOOGLE_ADS) {
+    if (!adsResult.ok) {
       return redirectAndClear(request, errorUrl(adsResult.reason));
     }
-  } else if (provider === IntegrationProvider.GOOGLE_ADS) {
-    return redirectAndClear(request, errorUrl("google_ads_scope_missing"));
   }
 
   const successUrl = new URL(integrationsPath(context.clientId), request.url);
