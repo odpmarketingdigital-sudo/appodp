@@ -89,9 +89,9 @@ async function persistGoogleAdsIntegration(
     return { ok: false, reason: "google_ads_customers" };
   }
 
-  const selectedCustomerId =
+  const selectedCustomer =
     customersResult.customers.length === 1
-      ? customersResult.customers[0].customerId
+      ? customersResult.customers[0]
       : null;
 
   await upsertIntegrationToken({
@@ -101,10 +101,17 @@ async function persistGoogleAdsIntegration(
     refreshToken: tokens.refreshToken,
     expiresAt: tokens.expiresAt,
     scope: tokens.scope,
-    externalAccountId: selectedCustomerId,
+    externalAccountId: selectedCustomer?.customerId ?? null,
     metadata: {
       customers: customersResult.customers,
-      ...(selectedCustomerId ? { customerId: selectedCustomerId } : {}),
+      ...(selectedCustomer
+        ? {
+            customerId: selectedCustomer.customerId,
+            ...(selectedCustomer.managerCustomerId
+              ? { managerCustomerId: selectedCustomer.managerCustomerId }
+              : {}),
+          }
+        : {}),
     },
   });
 

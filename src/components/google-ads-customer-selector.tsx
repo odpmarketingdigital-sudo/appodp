@@ -25,6 +25,7 @@ export function GoogleAdsCustomerSelector({
   showOnSuccess = false,
 }: GoogleAdsCustomerSelectorProps) {
   const [customers, setCustomers] = useState<GoogleAdsCustomerOption[]>([]);
+  const [managerCustomerId, setManagerCustomerId] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, startLoadTransition] = useTransition();
   const [state, formAction, pending] = useActionState(
@@ -45,6 +46,11 @@ export function GoogleAdsCustomerSelector({
       }
     });
   }, [hasGoogleAdsToken, clientId]);
+
+  function handleCustomerChange(customerId: string) {
+    const selected = customers.find((c) => c.customerId === customerId);
+    setManagerCustomerId(selected?.managerCustomerId ?? "");
+  }
 
   if (!hasGoogleAdsToken) {
     return (
@@ -93,6 +99,11 @@ export function GoogleAdsCustomerSelector({
           className="flex flex-col gap-3 sm:flex-row sm:items-end"
         >
           <input type="hidden" name="clientId" value={clientId} />
+          <input
+            type="hidden"
+            name="managerCustomerId"
+            value={managerCustomerId}
+          />
 
           <div className="flex-1 space-y-1.5">
             <label
@@ -106,6 +117,7 @@ export function GoogleAdsCustomerSelector({
               name="customerId"
               defaultValue={currentCustomerId ?? ""}
               required
+              onChange={(event) => handleCustomerChange(event.target.value)}
               className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-700"
             >
               <option value="" disabled>
@@ -113,7 +125,12 @@ export function GoogleAdsCustomerSelector({
               </option>
               {customers.map((customer) => (
                 <option key={customer.customerId} value={customer.customerId}>
-                  {customer.customerId} ({customer.resourceName})
+                  {customer.descriptiveName
+                    ? `${customer.descriptiveName} (${customer.customerId})`
+                    : customer.customerId}
+                  {customer.managerCustomerId
+                    ? ` — MCC ${customer.managerCustomerId}`
+                    : ""}
                 </option>
               ))}
             </select>

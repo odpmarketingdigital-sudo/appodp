@@ -120,6 +120,11 @@ const saveCustomerSchema = z.object({
     .string()
     .min(1, "Selecione uma conta de anúncios.")
     .regex(/^\d+$/, "ID da conta Google Ads inválido."),
+  managerCustomerId: z
+    .string()
+    .regex(/^\d+$/, "ID da MCC inválido.")
+    .optional()
+    .or(z.literal("")),
 });
 
 /** Salva a conta Google Ads monitorada no token do cliente. */
@@ -130,6 +135,7 @@ export async function saveGoogleAdsCustomerAction(
   const parsed = saveCustomerSchema.safeParse({
     clientId: formData.get("clientId"),
     customerId: formData.get("customerId"),
+    managerCustomerId: formData.get("managerCustomerId") ?? "",
   });
 
   if (!parsed.success) {
@@ -158,6 +164,8 @@ export async function saveGoogleAdsCustomerAction(
 
   const resourceName = `customers/${parsed.data.customerId}`;
 
+  const managerCustomerId = parsed.data.managerCustomerId || undefined;
+
   try {
     await prisma.integrationToken.update({
       where: {
@@ -171,6 +179,7 @@ export async function saveGoogleAdsCustomerAction(
         metadata: {
           customerId: parsed.data.customerId,
           resourceName,
+          ...(managerCustomerId ? { managerCustomerId } : {}),
         },
       },
     });
