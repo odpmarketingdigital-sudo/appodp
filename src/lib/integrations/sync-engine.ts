@@ -1,5 +1,6 @@
 import {
   IntegrationProvider,
+  Prisma,
   type IntegrationToken,
 } from "@/app/generated/prisma";
 import type { IntegrationCredentials } from "@/lib/integrations/base";
@@ -139,6 +140,7 @@ export type UpsertIntegrationTokenInput = {
   expiresAt?: Date | null;
   scope?: string | null;
   externalAccountId?: string | null;
+  metadata?: Prisma.InputJsonValue | null;
 };
 
 /**
@@ -158,6 +160,7 @@ export async function upsertIntegrationToken(
     expiresAt,
     scope,
     externalAccountId,
+    metadata,
   } = input;
 
   await prisma.integrationToken.upsert({
@@ -170,6 +173,7 @@ export async function upsertIntegrationToken(
       expiresAt: expiresAt ?? null,
       scope: scope ?? null,
       externalAccountId: externalAccountId ?? null,
+      metadata: metadata ?? undefined,
       isActive: true,
     },
     update: {
@@ -180,6 +184,12 @@ export async function upsertIntegrationToken(
       // Preserva o refresh token / external id existentes quando não enviados.
       ...(refreshToken ? { refreshToken } : {}),
       ...(externalAccountId ? { externalAccountId } : {}),
+      ...(metadata !== undefined
+        ? {
+            metadata:
+              metadata === null ? Prisma.JsonNull : metadata,
+          }
+        : {}),
     },
   });
 }

@@ -5,12 +5,14 @@ import { ArrowLeft } from "lucide-react";
 import { IntegrationProvider } from "@/app/generated/prisma";
 import { auth } from "@/auth";
 import { Ga4PropertySelector } from "@/components/ga4-property-selector";
+import { GoogleAdsCustomerSelector } from "@/components/google-ads-customer-selector";
 import { IntegrationCard } from "@/components/integration-card";
 import { MetaAdAccountSelector } from "@/components/meta-ad-account-selector";
 import { SyncMetricsButton } from "@/components/sync-metrics-button";
 import { parseActiveCampaignMetadata } from "@/lib/activecampaign-metadata";
 import { getCurrentMembership } from "@/lib/company";
 import { clientHasGa4Token } from "@/lib/client-ga4";
+import { clientHasGoogleAdsToken } from "@/lib/client-google-ads";
 import { clientHasMetaToken } from "@/lib/client-meta";
 import { prisma } from "@/lib/prisma";
 
@@ -55,6 +57,10 @@ const INTEGRATION_ERROR_MESSAGES: Record<string, string> = {
   token_exchange:
     "Não foi possível trocar o código de autorização pelo token do Google.",
   no_access_token: "O Google não retornou um token de acesso válido.",
+  google_ads_customers:
+    "Não foi possível listar as contas do Google Ads. Verifique o developer token e as permissões da conta.",
+  google_ads_scope_missing:
+    "O Google não concedeu o escopo do Google Ads. Tente conectar novamente e aceite todas as permissões.",
   forbidden: "Você não tem permissão para gerenciar este cliente.",
 };
 
@@ -99,10 +105,16 @@ export default async function ClientIntegrationsPage({
   );
 
   const ga4Token = tokensByProvider.get(IntegrationProvider.GA4);
+  const googleAdsToken = tokensByProvider.get(IntegrationProvider.GOOGLE_ADS);
   const metaToken = tokensByProvider.get(IntegrationProvider.META_ADS);
   const ga4Connected = Boolean(ga4Token?.isActive);
   const hasGa4Token = await clientHasGa4Token(client.id, membership.company.id);
+  const hasGoogleAdsToken = await clientHasGoogleAdsToken(
+    client.id,
+    membership.company.id,
+  );
   const hasMetaToken = await clientHasMetaToken(client.id, membership.company.id);
+  const googleAdsCustomerId = googleAdsToken?.externalAccountId ?? null;
   const metaAdAccountId = metaToken?.externalAccountId ?? null;
 
   const clientBasePath = `/dashboard/clients/${client.id}`;
@@ -150,7 +162,9 @@ export default async function ClientIntegrationsPage({
               As credenciais foram salvas.
               {integrationSuccess === "meta_ads_connected"
                 ? " Selecione a conta de anúncios Meta abaixo."
-                : " Selecione a propriedade GA4 abaixo, se aplicável."}
+                : integrationSuccess === "google_ads_connected"
+                  ? " Selecione a conta Google Ads abaixo."
+                  : " Selecione a propriedade GA4 abaixo, se aplicável."}
             </p>
           </div>
         )}
@@ -178,6 +192,24 @@ export default async function ClientIntegrationsPage({
             clientId={client.id}
             hasGa4Token={hasGa4Token}
             currentPropertyId={client.ga4PropertyId}
+          />
+        </section>
+
+        <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:mb-8 sm:p-6">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-zinc-100">
+              Conta Google Ads
+            </h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              Escolha qual conta de anúncios do Google será monitorada neste
+              cliente.
+            </p>
+          </div>
+          <GoogleAdsCustomerSelector
+            clientId={client.id}
+            hasGoogleAdsToken={hasGoogleAdsToken}
+            currentCustomerId={googleAdsCustomerId}
+            showOnSuccess={integrationSuccess === "google_ads_connected"}
           />
         </section>
 

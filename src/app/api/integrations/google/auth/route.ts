@@ -3,19 +3,16 @@ import { NextResponse, type NextRequest } from "next/server";
 import { IntegrationProvider } from "@/app/generated/prisma";
 import { auth } from "@/auth";
 import { getCurrentMembership } from "@/lib/company";
+import { GOOGLE_INTEGRATION_SCOPES } from "@/lib/integrations/google-ads-api";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 const GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
 
-/** Provedores Google suportados por este fluxo e seus escopos OAuth. */
-const GOOGLE_PROVIDER_SCOPES = {
-  [IntegrationProvider.GA4]: "https://www.googleapis.com/auth/analytics.readonly",
-  [IntegrationProvider.GOOGLE_ADS]: "https://www.googleapis.com/auth/adwords",
-} as const;
-
-type GoogleProvider = keyof typeof GOOGLE_PROVIDER_SCOPES;
+type GoogleProvider =
+  | typeof IntegrationProvider.GA4
+  | typeof IntegrationProvider.GOOGLE_ADS;
 
 function parseGoogleProvider(value: string | null): GoogleProvider | null {
   if (
@@ -80,7 +77,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   authUrl.searchParams.set("client_id", googleClientId);
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("scope", GOOGLE_PROVIDER_SCOPES[provider]);
+  authUrl.searchParams.set("scope", GOOGLE_INTEGRATION_SCOPES);
   authUrl.searchParams.set("access_type", "offline");
   authUrl.searchParams.set("prompt", "consent");
   authUrl.searchParams.set("include_granted_scopes", "true");

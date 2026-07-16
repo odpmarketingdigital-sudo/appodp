@@ -3,6 +3,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { IntegrationProvider } from "@/app/generated/prisma";
 import { auth } from "@/auth";
 import { getCurrentMembership } from "@/lib/company";
+import {
+  hasGoogleAdsScope,
+  hasGoogleAnalyticsScope,
+  listAccessibleGoogleAdsCustomers,
+} from "@/lib/integrations/google-ads-api";
 import { upsertIntegrationToken } from "@/lib/integrations/sync-engine";
 import { prisma } from "@/lib/prisma";
 
@@ -23,6 +28,13 @@ type GoogleTokenResponse = {
   expires_in?: number;
   scope?: string;
   token_type?: string;
+};
+
+type TokenPayload = {
+  accessToken: string;
+  refreshToken: string | null;
+  expiresAt: Date | null;
+  scope: string | null;
 };
 
 function parseGoogleProvider(value: string): IntegrationProvider | null {
@@ -46,7 +58,11 @@ function parseState(raw: string | undefined): OAuthState | null {
       typeof parsed.clientId === "string" &&
       typeof parsed.provider === "string"
     ) {
-      return { state: parsed.state, clientId: parsed.clientId, provider: parsed.provider };
+      return {
+        state: parsed.state,
+        clientId: parsed.clientId,
+        provider: parsed.provider,
+      };
     }
   } catch {
     // Cookie corrompido — tratado como ausente.
@@ -59,6 +75,40 @@ function redirectAndClear(request: NextRequest, target: URL): NextResponse {
   const response = NextResponse.redirect(target);
   response.cookies.set(STATE_COOKIE, "", { path: "/", maxAge: 0 });
   return response;
+}
+
+async function persistGoogleAdsIntegration(
+  clientId: string,
+  tokens: TokenPayload,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const customersResult = await listAccessibleGoogleAdsCustomers(
+    tokens.accessToken,
+  );
+
+  if (!customersResult.ok) {
+    return { ok: false, reason: "google_ads_customers" };
+  }
+
+  const selectedCustomerId =
+    customersResult.customers.length === 1
+      ? customersResult.customers[0].customerId
+      : null;
+
+  await upsertIntegrationToken({
+    clientId,
+    provider: IntegrationProvider.GOOGLE_ADS,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    expiresAt: tokens.expiresAt,
+    scope: tokens.scope,
+    externalAccountId: selectedCustomerId,
+    metadata: {
+      customers: customersResult.customers,
+      ...(selectedCustomerId ? { customerId: selectedCustomerId } : {}),
+    },
+  });
+
+  return { ok: true };
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
@@ -77,7 +127,6 @@ export async function GET(request: NextRequest): Promise<Response> {
   const integrationsPath = (clientId: string) =>
     `/dashboard/clients/${clientId}/integrations`;
 
-  // Falha de consentimento ou cookie/estado ausente.
   if (oauthError || !code || !stateParam || !context) {
     const target = context
       ? new URL(integrationsPath(context.clientId), request.url)
@@ -86,7 +135,6 @@ export async function GET(request: NextRequest): Promise<Response> {
     return redirectAndClear(request, target);
   }
 
-  // Proteção contra CSRF: o state retornado deve bater com o do cookie.
   if (stateParam !== context.state) {
     const target = new URL(integrationsPath(context.clientId), request.url);
     target.searchParams.set("integration_error", "state_mismatch");
@@ -107,7 +155,6 @@ export async function GET(request: NextRequest): Promise<Response> {
     return redirectAndClear(request, target);
   }
 
-  // Isolamento multi-tenant: confirma que o cliente é da empresa do usuário.
   const membership = await getCurrentMembership(session.user.id);
   const client = membership
     ? await prisma.client.findFirst({
@@ -126,7 +173,6 @@ export async function GET(request: NextRequest): Promise<Response> {
     request.url,
   ).toString();
 
-  // Troca do código de autorização pelo token definitivo.
   const tokenResponse = await fetch(GOOGLE_TOKEN_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -139,34 +185,71 @@ export async function GET(request: NextRequest): Promise<Response> {
     }),
   });
 
-  if (!tokenResponse.ok) {
+  const errorUrl = (reason: string): URL => {
     const target = new URL(integrationsPath(context.clientId), request.url);
-    target.searchParams.set("integration_error", "token_exchange");
-    return redirectAndClear(request, target);
+    target.searchParams.set("integration_error", reason);
+    return target;
+  };
+
+  if (!tokenResponse.ok) {
+    return redirectAndClear(request, errorUrl("token_exchange"));
   }
 
   const tokens = (await tokenResponse.json()) as GoogleTokenResponse;
   if (!tokens.access_token) {
-    const target = new URL(integrationsPath(context.clientId), request.url);
-    target.searchParams.set("integration_error", "no_access_token");
-    return redirectAndClear(request, target);
+    return redirectAndClear(request, errorUrl("no_access_token"));
   }
 
-  const expiresAt =
-    typeof tokens.expires_in === "number"
-      ? new Date(Date.now() + tokens.expires_in * 1000)
-      : null;
+  const tokenPayload: TokenPayload = {
+    accessToken: tokens.access_token,
+    refreshToken: tokens.refresh_token ?? null,
+    expiresAt:
+      typeof tokens.expires_in === "number"
+        ? new Date(Date.now() + tokens.expires_in * 1000)
+        : null,
+    scope: tokens.scope ?? null,
+  };
 
   await upsertIntegrationToken({
     clientId: context.clientId,
     provider,
-    accessToken: tokens.access_token,
-    refreshToken: tokens.refresh_token ?? null,
-    expiresAt,
-    scope: tokens.scope ?? null,
+    accessToken: tokenPayload.accessToken,
+    refreshToken: tokenPayload.refreshToken,
+    expiresAt: tokenPayload.expiresAt,
+    scope: tokenPayload.scope,
   });
 
+  if (
+    hasGoogleAnalyticsScope(tokenPayload.scope) &&
+    provider === IntegrationProvider.GOOGLE_ADS
+  ) {
+    await upsertIntegrationToken({
+      clientId: context.clientId,
+      provider: IntegrationProvider.GA4,
+      accessToken: tokenPayload.accessToken,
+      refreshToken: tokenPayload.refreshToken,
+      expiresAt: tokenPayload.expiresAt,
+      scope: tokenPayload.scope,
+    });
+  }
+
+  if (hasGoogleAdsScope(tokenPayload.scope)) {
+    const adsResult = await persistGoogleAdsIntegration(
+      context.clientId,
+      tokenPayload,
+    );
+
+    if (!adsResult.ok && provider === IntegrationProvider.GOOGLE_ADS) {
+      return redirectAndClear(request, errorUrl(adsResult.reason));
+    }
+  } else if (provider === IntegrationProvider.GOOGLE_ADS) {
+    return redirectAndClear(request, errorUrl("google_ads_scope_missing"));
+  }
+
   const successUrl = new URL(integrationsPath(context.clientId), request.url);
-  successUrl.searchParams.set("integration", `${provider.toLowerCase()}_connected`);
+  successUrl.searchParams.set(
+    "integration",
+    `${provider.toLowerCase()}_connected`,
+  );
   return redirectAndClear(request, successUrl);
 }
