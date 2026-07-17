@@ -117,6 +117,8 @@ export default async function ClientIntegrationsPage({
   );
   const hasMetaToken = await clientHasMetaToken(client.id, membership.company.id);
   const googleAdsCustomerId = googleAdsToken?.externalAccountId ?? null;
+  const googleAdsConnected = Boolean(googleAdsToken?.isActive);
+  const googleAdsAccountSelected = Boolean(googleAdsCustomerId);
   const metaAdAccountId = metaToken?.externalAccountId ?? null;
 
   const clientBasePath = `/dashboard/clients/${client.id}`;
@@ -198,14 +200,24 @@ export default async function ClientIntegrationsPage({
         </section>
 
         <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:mb-8 sm:p-6">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold text-zinc-100">
-              Conta Google Ads
-            </h2>
-            <p className="mt-1 text-sm text-zinc-400">
-              Escolha qual conta de anúncios do Google será monitorada neste
-              cliente.
-            </p>
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-100">
+                Conta Google Ads
+              </h2>
+              <p className="mt-1 text-sm text-zinc-400">
+                Escolha qual conta de anúncios do Google será monitorada neste
+                cliente.
+              </p>
+            </div>
+            {googleAdsConnected && googleAdsAccountSelected && (
+              <SyncMetricsButton
+                clientId={client.id}
+                provider={IntegrationProvider.GOOGLE_ADS}
+                label="Google Ads"
+                disabled={!googleAdsConnected}
+              />
+            )}
           </div>
           <GoogleAdsCustomerSelector
             clientId={client.id}

@@ -11,6 +11,7 @@ import { IntegrationEmptyState } from "@/components/integration-empty-state";
 import { MetaDashboardSummary } from "@/components/meta-dashboard-summary";
 import type { MetricPoint } from "@/components/metrics-chart";
 import type { GA4DashboardReport } from "@/types/ga4";
+import type { GoogleAdsCampaignPerformanceRow } from "@/types/google-ads";
 import type { MetaInsightsSummary } from "@/types/meta";
 
 const TABS = [
@@ -29,6 +30,8 @@ type ClientAnalyticsTabsProps = {
   googleAdsConnected: boolean;
   googleAdsAccountSelected: boolean;
   googleAdsMetrics: MetricPoint[];
+  googleAdsCampaigns: GoogleAdsCampaignPerformanceRow[];
+  googleAdsCampaignsError: string | null;
   metaConnected: boolean;
   metaAccountSelected: boolean;
   acConnected: boolean;
@@ -48,6 +51,8 @@ export function ClientAnalyticsTabs({
   googleAdsConnected,
   googleAdsAccountSelected,
   googleAdsMetrics,
+  googleAdsCampaigns,
+  googleAdsCampaignsError,
   metaConnected,
   metaAccountSelected,
   acConnected,
@@ -181,7 +186,9 @@ export function ClientAnalyticsTabs({
 
             {googleAdsConnected &&
               googleAdsAccountSelected &&
-              !hasGoogleAdsMetrics && (
+              !hasGoogleAdsMetrics &&
+              googleAdsCampaigns.length === 0 &&
+              !googleAdsCampaignsError && (
                 <IntegrationEmptyState
                   icon={CircleDollarSign}
                   title="Aguardando dados do Google Ads"
@@ -193,8 +200,23 @@ export function ClientAnalyticsTabs({
 
             {googleAdsConnected &&
               googleAdsAccountSelected &&
-              hasGoogleAdsMetrics && (
-                <GoogleAdsDashboardSummary data={googleAdsMetrics} />
+              (hasGoogleAdsMetrics ||
+                googleAdsCampaigns.length > 0 ||
+                Boolean(googleAdsCampaignsError)) && (
+                <div className="space-y-4">
+                  {googleAdsCampaignsError && (
+                    <div
+                      role="alert"
+                      className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+                    >
+                      {googleAdsCampaignsError}
+                    </div>
+                  )}
+                  <GoogleAdsDashboardSummary
+                    data={googleAdsMetrics}
+                    campaigns={googleAdsCampaigns}
+                  />
+                </div>
               )}
           </div>
         )}

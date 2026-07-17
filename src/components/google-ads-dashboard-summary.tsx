@@ -1,6 +1,7 @@
-import { Eye, MousePointerClick, Percent, Wallet } from "lucide-react";
+import { AlertTriangle, Eye, MousePointerClick, Percent, Wallet } from "lucide-react";
 
 import type { MetricPoint } from "@/components/metrics-chart";
+import type { GoogleAdsCampaignPerformanceRow } from "@/types/google-ads";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -9,8 +10,11 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
 
 const numberFormatter = new Intl.NumberFormat("pt-BR");
 
+const CTR_ALERT_THRESHOLD = 1.5;
+
 type GoogleAdsDashboardSummaryProps = {
   data: MetricPoint[];
+  campaigns: GoogleAdsCampaignPerformanceRow[];
   variant?: "agency" | "client";
 };
 
@@ -25,13 +29,160 @@ function aggregateMetrics(data: MetricPoint[]) {
   );
 }
 
+type CampaignAlert = {
+  campaignName: string;
+  message: string;
+  tone: "amber" | "red";
+};
+
+function buildCampaignAlerts(
+  campaigns: GoogleAdsCampaignPerformanceRow[],
+): CampaignAlert[] {
+  const alerts: CampaignAlert[] = [];
+
+  for (const campaign of campaigns) {
+    if (!campaign.isActive) continue;
+
+    if (campaign.spend > 0 && campaign.conversions === 0) {
+      alerts.push({
+        campaignName: campaign.name,
+        message: "Gastou verba no período e não gerou conversões.",
+        tone: "red",
+      });
+      continue;
+    }
+
+    if (campaign.impressions >= 100 && campaign.ctr < CTR_ALERT_THRESHOLD) {
+      alerts.push({
+        campaignName: campaign.name,
+        message: `CTR de ${numberFormatter.format(Math.round(campaign.ctr * 100) / 100)}% — abaixo de ${CTR_ALERT_THRESHOLD}%. Revise criativos e segmentação.`,
+        tone: "amber",
+      });
+    }
+  }
+
+  return alerts;
+}
+
+function CampaignAlertsPanel({ alerts }: { alerts: CampaignAlert[] }) {
+  if (alerts.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4 sm:p-5">
+      <div className="mb-3 flex items-center gap-2">
+        <AlertTriangle className="h-4 w-4 text-amber-400" aria-hidden />
+        <h4 className="text-sm font-semibold text-amber-200">
+          Alertas de atenção
+        </h4>
+      </div>
+      <ul className="space-y-2">
+        {alerts.map((alert) => (
+          <li
+            key={`${alert.campaignName}-${alert.message}`}
+            className={
+              alert.tone === "red"
+                ? "rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-200"
+                : "rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-sm text-amber-100"
+            }
+          >
+            <span className="font-medium text-zinc-100">{alert.campaignName}</span>
+            <span className="text-zinc-400"> — </span>
+            {alert.message}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function CampaignPerformanceTable({
+  campaigns,
+}: {
+  campaigns: GoogleAdsCampaignPerformanceRow[];
+}) {
+  return (
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5">
+      <div className="mb-4">
+        <h4 className="text-sm font-semibold text-zinc-100">
+          Desempenho por campanha
+        </h4>
+        <p className="mt-1 text-xs text-zinc-500">
+          Ordenado por conversões (maior primeiro) no período selecionado.
+        </p>
+      </div>
+
+      {campaigns.length === 0 ? (
+        <p className="text-sm text-zinc-500">
+          Nenhuma campanha com dados no período. Sincronize as métricas ou
+          verifique se há campanhas ativas na conta.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-zinc-800 text-xs text-zinc-500">
+                <th className="pb-3 pr-4 font-medium">Campanha</th>
+                <th className="pb-3 pr-4 font-medium text-right">Investimento</th>
+                <th className="pb-3 pr-4 font-medium text-right">Cliques</th>
+                <th className="pb-3 pr-4 font-medium text-right">CTR</th>
+                <th className="pb-3 pr-4 font-medium text-right">Conversões</th>
+                <th className="pb-3 font-medium text-right">CPL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {campaigns.map((campaign) => (
+                <tr
+                  key={campaign.campaignId}
+                  className="border-b border-zinc-800/60 last:border-0"
+                >
+                  <td className="py-3 pr-4">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-zinc-100">
+                        {campaign.name}
+                      </p>
+                      {!campaign.isActive && (
+                        <p className="mt-0.5 text-xs text-zinc-500">
+                          {campaign.status}
+                        </p>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-3 pr-4 text-right tabular-nums text-zinc-300">
+                    {currencyFormatter.format(campaign.spend)}
+                  </td>
+                  <td className="py-3 pr-4 text-right tabular-nums text-zinc-300">
+                    {numberFormatter.format(campaign.clicks)}
+                  </td>
+                  <td className="py-3 pr-4 text-right tabular-nums text-zinc-300">
+                    {numberFormatter.format(Math.round(campaign.ctr * 100) / 100)}%
+                  </td>
+                  <td className="py-3 pr-4 text-right tabular-nums text-zinc-300">
+                    {numberFormatter.format(campaign.conversions)}
+                  </td>
+                  <td className="py-3 text-right tabular-nums text-zinc-300">
+                    {campaign.cpl != null
+                      ? currencyFormatter.format(campaign.cpl)
+                      : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function GoogleAdsDashboardSummary({
   data,
+  campaigns,
   variant = "client",
 }: GoogleAdsDashboardSummaryProps) {
   const totals = aggregateMetrics(data);
   const ctr =
     totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
+  const alerts = buildCampaignAlerts(campaigns);
 
   const cards = [
     {
@@ -97,6 +248,10 @@ export function GoogleAdsDashboardSummary({
           );
         })}
       </div>
+
+      <CampaignAlertsPanel alerts={alerts} />
+
+      <CampaignPerformanceTable campaigns={campaigns} />
     </section>
   );
 }

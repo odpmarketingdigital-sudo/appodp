@@ -6,6 +6,7 @@ import {
   type MarketingIntegration,
 } from "@/lib/integrations/base";
 import { GA4Integration } from "@/lib/integrations/ga4";
+import { GoogleAdsIntegration } from "@/lib/integrations/google-ads";
 import { MetaAdsIntegration } from "@/lib/integrations/meta";
 import { RDStationIntegration } from "@/lib/integrations/rdstation";
 import type {
@@ -44,10 +45,6 @@ abstract class UnimplementedIntegration extends BaseIntegration {
       },
     };
   }
-}
-
-class GoogleAdsIntegration extends UnimplementedIntegration {
-  readonly provider = IntegrationProvider.GOOGLE_ADS;
 }
 
 class ActiveCampaignIntegration extends UnimplementedIntegration {

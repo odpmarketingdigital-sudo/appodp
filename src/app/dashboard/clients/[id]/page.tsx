@@ -19,10 +19,12 @@ import {
   resolveDateRangePreset,
 } from "@/lib/date-ranges";
 import { fetchGa4DashboardReport } from "@/lib/integrations/ga4-api";
+import { getGoogleAdsCampaignPerformance } from "@/lib/integrations/google-ads-api";
 import { getMetaInsights } from "@/lib/integrations/meta-api";
 import { prisma } from "@/lib/prisma";
 
 import type { GA4DashboardReport } from "@/types/ga4";
+import type { GoogleAdsCampaignPerformanceRow } from "@/types/google-ads";
 
 const CHART_PROVIDERS = [
   { provider: IntegrationProvider.GA4, label: "GA4" },
@@ -172,6 +174,24 @@ export default async function ClientDetailPage({
     (point) => point.date >= range.start && point.date <= range.end,
   );
 
+  let googleAdsCampaigns: GoogleAdsCampaignPerformanceRow[] = [];
+  let googleAdsCampaignsError: string | null = null;
+
+  if (googleAdsConnected && googleAdsAccountSelected) {
+    const campaignsResult = await getGoogleAdsCampaignPerformance(
+      client.id,
+      membership.company.id,
+      range.start,
+      range.end,
+    );
+
+    if (campaignsResult.ok) {
+      googleAdsCampaigns = campaignsResult.campaigns;
+    } else {
+      googleAdsCampaignsError = campaignsResult.error;
+    }
+  }
+
   return (
     <main className="flex-1 overflow-x-hidden p-4 sm:p-6">
       <div className="mx-auto w-full max-w-4xl">
@@ -205,6 +225,8 @@ export default async function ClientDetailPage({
           googleAdsConnected={googleAdsConnected}
           googleAdsAccountSelected={googleAdsAccountSelected}
           googleAdsMetrics={googleAdsMetrics}
+          googleAdsCampaigns={googleAdsCampaigns}
+          googleAdsCampaignsError={googleAdsCampaignsError}
           metaConnected={metaConnected}
           metaAccountSelected={metaAccountSelected}
           acConnected={acConnected}

@@ -12,6 +12,7 @@ export type IntegrationCredentials = {
   expiresAt?: Date | null;
   externalAccountId?: string | null;
   scope?: string | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 /** Parâmetros para a busca de um relatório. */

@@ -1,5 +1,9 @@
 import { IntegrationProvider } from "@/app/generated/prisma";
-import type { GoogleAdsCustomerOption, GoogleAdsCustomersListResult } from "@/types/google-ads";
+import type {
+  GoogleAdsCampaignPerformanceResult,
+  GoogleAdsCustomerOption,
+  GoogleAdsCustomersListResult,
+} from "@/types/google-ads";
 
 /** Versão REST ativa. Override: GOOGLE_ADS_API_VERSION=v22 (ou 22) */
 const DEFAULT_GOOGLE_ADS_API_VERSION = "v22";
@@ -469,4 +473,309 @@ export async function listAccessibleGoogleAdsCustomers(
       customers: [],
     };
   }
+}
+
+export type GoogleAdsDailyMetric = {
+  date: string;
+  impressions: number;
+  clicks: number;
+  cost: number;
+  ctr: number;
+  conversions: number;
+  revenue: number;
+};
+
+export type GoogleAdsMetricsFetchResult =
+  | { ok: true; series: GoogleAdsDailyMetric[]; currency: string }
+  | { ok: false; error: string };
+
+type GoogleAdsMetricsSearchResponse = {
+  results?: Array<{
+    segments?: { date?: string };
+    customer?: { currencyCode?: string };
+    metrics?: {
+      costMicros?: string;
+      impressions?: string;
+      clicks?: string;
+      ctr?: number;
+      conversions?: number;
+      conversionsValue?: number;
+    };
+  }>;
+  nextPageToken?: string;
+};
+
+function parseGoogleAdsMetricNumber(value: string | number | undefined): number {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/**
+ * Busca métricas diárias de uma conta Google Ads via GAQL (googleAds:search).
+ */
+export async function fetchGoogleAdsMetrics(
+  accessToken: string,
+  customerId: string,
+  startDate: string,
+  endDate: string,
+  loginCustomerId?: string | null,
+): Promise<GoogleAdsMetricsFetchResult> {
+  const { token: developerToken } = resolveGoogleAdsDeveloperToken();
+  if (!developerToken) {
+    return {
+      ok: false,
+      error: "GOOGLE_ADS_DEVELOPER_TOKEN não configurado no ambiente do servidor.",
+    };
+  }
+
+  const normalizedCustomerId = normalizeCustomerIdForHeader(customerId);
+  const normalizedLoginCustomerId = normalizeCustomerIdForHeader(
+    loginCustomerId ?? customerId,
+  );
+
+  const url = `${GOOGLE_ADS_API}/customers/${normalizedCustomerId}/googleAds:search`;
+  const query = `
+    SELECT
+      segments.date,
+      metrics.cost_micros,
+      metrics.impressions,
+      metrics.clicks,
+      metrics.ctr,
+      metrics.conversions,
+      metrics.conversions_value,
+      customer.currency_code
+    FROM customer
+    WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
+    ORDER BY segments.date
+  `.trim();
+
+  const byDate = new Map<string, GoogleAdsDailyMetric>();
+  let currency = "BRL";
+  let pageToken: string | undefined;
+
+  do {
+    const result = await googleAdsFetch(url, accessToken, developerToken, {
+      method: "POST",
+      loginCustomerId: normalizedLoginCustomerId,
+      body: {
+        query,
+        ...(pageToken ? { pageToken } : {}),
+      },
+    });
+
+    if (!result.ok) {
+      return { ok: false, error: result.failure.message };
+    }
+
+    const payload = result.data as GoogleAdsMetricsSearchResponse;
+
+    for (const row of payload.results ?? []) {
+      const date = row.segments?.date;
+      if (!date) continue;
+
+      if (row.customer?.currencyCode) {
+        currency = row.customer.currencyCode;
+      }
+
+      const costMicros = parseGoogleAdsMetricNumber(row.metrics?.costMicros);
+      const impressions = parseGoogleAdsMetricNumber(row.metrics?.impressions);
+      const clicks = parseGoogleAdsMetricNumber(row.metrics?.clicks);
+
+      byDate.set(date, {
+        date,
+        impressions,
+        clicks,
+        cost: costMicros / 1_000_000,
+        ctr: parseGoogleAdsMetricNumber(row.metrics?.ctr),
+        conversions: parseGoogleAdsMetricNumber(row.metrics?.conversions),
+        revenue: parseGoogleAdsMetricNumber(row.metrics?.conversionsValue),
+      });
+    }
+
+    pageToken = payload.nextPageToken;
+  } while (pageToken);
+
+  const series = Array.from(byDate.values()).sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
+
+  return { ok: true, series, currency };
+}
+
+type GoogleAdsCampaignSearchResponse = {
+  results?: Array<{
+    campaign?: {
+      id?: string;
+      name?: string;
+      status?: string;
+    };
+    metrics?: {
+      costMicros?: string;
+      impressions?: string;
+      clicks?: string;
+      conversions?: number;
+    };
+  }>;
+  nextPageToken?: string;
+};
+
+/**
+ * Busca métricas agregadas por campanha no período (GAQL + rollup local).
+ */
+export async function fetchGoogleAdsCampaignMetrics(
+  accessToken: string,
+  customerId: string,
+  startDate: string,
+  endDate: string,
+  loginCustomerId?: string | null,
+): Promise<GoogleAdsCampaignPerformanceResult> {
+  const { token: developerToken } = resolveGoogleAdsDeveloperToken();
+  if (!developerToken) {
+    return {
+      ok: false,
+      error: "GOOGLE_ADS_DEVELOPER_TOKEN não configurado no ambiente do servidor.",
+      campaigns: [],
+    };
+  }
+
+  const normalizedCustomerId = normalizeCustomerIdForHeader(customerId);
+  const normalizedLoginCustomerId = normalizeCustomerIdForHeader(
+    loginCustomerId ?? customerId,
+  );
+
+  const url = `${GOOGLE_ADS_API}/customers/${normalizedCustomerId}/googleAds:search`;
+  const query = `
+    SELECT
+      campaign.id,
+      campaign.name,
+      campaign.status,
+      metrics.cost_micros,
+      metrics.impressions,
+      metrics.clicks,
+      metrics.conversions
+    FROM campaign
+    WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
+      AND campaign.status != 'REMOVED'
+  `.trim();
+
+  type CampaignAccumulator = {
+    campaignId: string;
+    name: string;
+    status: string;
+    spend: number;
+    impressions: number;
+    clicks: number;
+    conversions: number;
+  };
+
+  const byCampaign = new Map<string, CampaignAccumulator>();
+  let pageToken: string | undefined;
+
+  do {
+    const result = await googleAdsFetch(url, accessToken, developerToken, {
+      method: "POST",
+      loginCustomerId: normalizedLoginCustomerId,
+      body: {
+        query,
+        ...(pageToken ? { pageToken } : {}),
+      },
+    });
+
+    if (!result.ok) {
+      return {
+        ok: false,
+        error: result.failure.message,
+        campaigns: [],
+      };
+    }
+
+    const payload = result.data as GoogleAdsCampaignSearchResponse;
+
+    for (const row of payload.results ?? []) {
+      const campaign = row.campaign;
+      if (!campaign?.id) continue;
+
+      const campaignId = String(campaign.id);
+      const existing = byCampaign.get(campaignId) ?? {
+        campaignId,
+        name: campaign.name ?? `Campanha ${campaignId}`,
+        status: campaign.status ?? "UNKNOWN",
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        conversions: 0,
+      };
+
+      const costMicros = parseGoogleAdsMetricNumber(row.metrics?.costMicros);
+      existing.spend += costMicros / 1_000_000;
+      existing.impressions += parseGoogleAdsMetricNumber(row.metrics?.impressions);
+      existing.clicks += parseGoogleAdsMetricNumber(row.metrics?.clicks);
+      existing.conversions += parseGoogleAdsMetricNumber(row.metrics?.conversions);
+
+      if (campaign.name) {
+        existing.name = campaign.name;
+      }
+      if (campaign.status) {
+        existing.status = campaign.status;
+      }
+
+      byCampaign.set(campaignId, existing);
+    }
+
+    pageToken = payload.nextPageToken;
+  } while (pageToken);
+
+  const campaigns = Array.from(byCampaign.values())
+    .map((row) => {
+      const ctr =
+        row.impressions > 0 ? (row.clicks / row.impressions) * 100 : 0;
+      const cpl = row.conversions > 0 ? row.spend / row.conversions : null;
+
+      return {
+        campaignId: row.campaignId,
+        name: row.name,
+        status: row.status,
+        spend: row.spend,
+        impressions: row.impressions,
+        clicks: row.clicks,
+        conversions: Math.round(row.conversions),
+        ctr,
+        cpl,
+        isActive: row.status === "ENABLED",
+      };
+    })
+    .sort((a, b) => b.conversions - a.conversions);
+
+  return { ok: true, campaigns };
+}
+
+/** Métricas por campanha para um cliente (credenciais do token GOOGLE_ADS). */
+export async function getGoogleAdsCampaignPerformance(
+  clientId: string,
+  companyId: string,
+  startDate: string,
+  endDate: string,
+): Promise<GoogleAdsCampaignPerformanceResult> {
+  const { getClientGoogleAdsConnection } = await import("@/lib/client-google-ads");
+  const connection = await getClientGoogleAdsConnection(clientId, companyId);
+
+  if (!connection?.accessToken || !connection.customerId) {
+    return {
+      ok: false,
+      error:
+        "Conta Google Ads não configurada. Selecione a conta na página de integrações.",
+      campaigns: [],
+    };
+  }
+
+  return fetchGoogleAdsCampaignMetrics(
+    connection.accessToken,
+    connection.customerId,
+    startDate,
+    endDate,
+    connection.managerCustomerId,
+  );
 }

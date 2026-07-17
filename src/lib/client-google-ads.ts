@@ -5,6 +5,7 @@ import { getValidGoogleAccessToken } from "@/lib/integrations/google-token";
 export type ClientGoogleAdsConnection = {
   accessToken: string;
   customerId: string | null;
+  managerCustomerId: string | null;
   clientId: string;
   tokenId: string;
 };
@@ -59,9 +60,15 @@ export async function getClientGoogleAdsConnection(
     token.externalAccountId ??
     (typeof metadata?.customerId === "string" ? metadata.customerId : null);
 
+  const managerCustomerId =
+    typeof metadata?.managerCustomerId === "string"
+      ? metadata.managerCustomerId
+      : null;
+
   return {
     accessToken,
     customerId,
+    managerCustomerId,
     clientId: client.id,
     tokenId: token.id,
   };

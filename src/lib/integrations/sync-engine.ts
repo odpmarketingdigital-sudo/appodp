@@ -17,6 +17,7 @@ const BATCH_SIZE = 5;
 /** Provedores com integração real implementada (coleta habilitada). */
 export const SYNCABLE_PROVIDERS = [
   IntegrationProvider.GA4,
+  IntegrationProvider.GOOGLE_ADS,
   IntegrationProvider.META_ADS,
   IntegrationProvider.RD_STATION,
 ] as const;
@@ -196,12 +197,20 @@ export async function upsertIntegrationToken(
 
 /** Converte um `IntegrationToken` persistido em credenciais de integração. */
 export function toCredentials(token: IntegrationToken): IntegrationCredentials {
+  const metadata =
+    token.metadata &&
+    typeof token.metadata === "object" &&
+    !Array.isArray(token.metadata)
+      ? (token.metadata as Record<string, unknown>)
+      : null;
+
   return {
     accessToken: token.accessToken,
     refreshToken: token.refreshToken,
     expiresAt: token.expiresAt,
     externalAccountId: token.externalAccountId,
     scope: token.scope,
+    metadata,
   };
 }
 

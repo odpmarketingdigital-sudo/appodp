@@ -29,6 +29,7 @@ function parseProvider(
 
 const PROVIDER_LABELS: Record<SyncableProvider, string> = {
   [IntegrationProvider.GA4]: "GA4",
+  [IntegrationProvider.GOOGLE_ADS]: "Google Ads",
   [IntegrationProvider.META_ADS]: "Meta Ads",
   [IntegrationProvider.RD_STATION]: "RD Station",
 };
@@ -105,6 +106,7 @@ export async function syncClientMetricsAction(
   }
 
   revalidatePath(`/dashboard/clients/${clientId}`);
+  revalidatePath(`/dashboard/clients/${clientId}/integrations`);
 
   return {
     status: "success",
