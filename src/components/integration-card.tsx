@@ -7,7 +7,7 @@ import {
   type IntegrationFormState,
 } from "@/actions/integration";
 import { ActiveCampaignPipelineSelector } from "@/components/activecampaign-pipeline-selector";
-import { OAuthDisconnectControls } from "@/components/oauth-disconnect-controls";
+import { IntegrationDisconnectControls } from "@/components/oauth-disconnect-controls";
 import { IntegrationProvider } from "@/app/generated/prisma";
 
 const initialState: IntegrationFormState = { status: "idle" };
@@ -161,8 +161,9 @@ export function IntegrationCard({
             </a>
 
             {(provider === IntegrationProvider.GA4 ||
-              provider === IntegrationProvider.GOOGLE_ADS) && (
-              <OAuthDisconnectControls
+              provider === IntegrationProvider.GOOGLE_ADS ||
+              provider === IntegrationProvider.META_ADS) && (
+              <IntegrationDisconnectControls
                 clientId={clientId}
                 provider={provider}
                 label={label}
@@ -172,13 +173,26 @@ export function IntegrationCard({
           </div>
         </div>
       ) : !open ? (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="mt-4 inline-flex w-full items-center justify-center self-stretch rounded-full border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800 sm:w-auto sm:self-start"
-        >
-          {connected ? "Editar credenciais" : "Conectar"}
-        </button>
+        <div className="mt-4 flex flex-col gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="inline-flex w-full items-center justify-center self-stretch rounded-full border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800 sm:w-auto sm:self-start"
+            >
+              {connected ? "Editar credenciais" : "Conectar"}
+            </button>
+
+            {provider === IntegrationProvider.ACTIVECAMPAIGN && (
+              <IntegrationDisconnectControls
+                clientId={clientId}
+                provider={provider}
+                label={label}
+                connected={connected}
+              />
+            )}
+          </div>
+        </div>
       ) : (
         <form action={formAction} className="mt-4 space-y-3">
           <input type="hidden" name="clientId" value={clientId} />

@@ -96,21 +96,23 @@ function DisconnectIntegrationDialog({
   );
 }
 
-type OAuthDisconnectControlsProps = {
+type IntegrationDisconnectControlsProps = {
   clientId: string;
   provider:
     | typeof IntegrationProvider.GA4
-    | typeof IntegrationProvider.GOOGLE_ADS;
+    | typeof IntegrationProvider.GOOGLE_ADS
+    | typeof IntegrationProvider.META_ADS
+    | typeof IntegrationProvider.ACTIVECAMPAIGN;
   label: string;
   connected: boolean;
 };
 
-export function OAuthDisconnectControls({
+export function IntegrationDisconnectControls({
   clientId,
   provider,
   label,
   connected,
-}: OAuthDisconnectControlsProps) {
+}: IntegrationDisconnectControlsProps) {
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -210,3 +212,6 @@ export function OAuthDisconnectControls({
     </div>
   );
 }
+
+/** @deprecated Use IntegrationDisconnectControls */
+export const OAuthDisconnectControls = IntegrationDisconnectControls;

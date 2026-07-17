@@ -11,6 +11,8 @@ export const dynamic = "force-dynamic";
 const DISCONNECTABLE_PROVIDERS = [
   IntegrationProvider.GA4,
   IntegrationProvider.GOOGLE_ADS,
+  IntegrationProvider.META_ADS,
+  IntegrationProvider.ACTIVECAMPAIGN,
 ] as const;
 
 const disconnectSchema = z.object({
