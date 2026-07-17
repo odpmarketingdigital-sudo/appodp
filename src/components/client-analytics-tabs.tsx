@@ -1,18 +1,21 @@
 "use client";
 
-import { Suspense, useState, type ReactNode } from "react";
-import { BarChart3, Megaphone, Users } from "lucide-react";
+import { Suspense, useMemo, useState, type ReactNode } from "react";
+import { BarChart3, CircleDollarSign, Megaphone, Users } from "lucide-react";
 
 import { CrmDealMetricsSkeleton } from "@/components/crm-deal-metrics-skeleton";
 import { DashboardDateRange } from "@/components/dashboard-date-range";
 import { Ga4DashboardCharts } from "@/components/ga4-dashboard-charts";
+import { GoogleAdsDashboardSummary } from "@/components/google-ads-dashboard-summary";
 import { IntegrationEmptyState } from "@/components/integration-empty-state";
 import { MetaDashboardSummary } from "@/components/meta-dashboard-summary";
+import type { MetricPoint } from "@/components/metrics-chart";
 import type { GA4DashboardReport } from "@/types/ga4";
 import type { MetaInsightsSummary } from "@/types/meta";
 
 const TABS = [
   { id: "ga4", label: "Google Analytics 4", icon: BarChart3 },
+  { id: "google_ads", label: "Google Ads", icon: CircleDollarSign },
   { id: "meta", label: "Meta Ads", icon: Megaphone },
   { id: "crm", label: "CRM", icon: Users },
 ] as const;
@@ -23,6 +26,9 @@ type ClientAnalyticsTabsProps = {
   basePath: string;
   integrationsHref: string;
   ga4Connected: boolean;
+  googleAdsConnected: boolean;
+  googleAdsAccountSelected: boolean;
+  googleAdsMetrics: MetricPoint[];
   metaConnected: boolean;
   metaAccountSelected: boolean;
   acConnected: boolean;
@@ -39,6 +45,9 @@ export function ClientAnalyticsTabs({
   basePath,
   integrationsHref,
   ga4Connected,
+  googleAdsConnected,
+  googleAdsAccountSelected,
+  googleAdsMetrics,
   metaConnected,
   metaAccountSelected,
   acConnected,
@@ -50,15 +59,38 @@ export function ClientAnalyticsTabs({
   metaInsights,
   metaError,
 }: ClientAnalyticsTabsProps) {
+  const visibleTabs = useMemo(
+    () =>
+      TABS.filter((tab) => {
+        if (tab.id === "google_ads") {
+          return googleAdsConnected;
+        }
+        return true;
+      }),
+    [googleAdsConnected],
+  );
+
   const [activeTab, setActiveTab] = useState<TabId>("ga4");
+
+  const resolvedActiveTab = visibleTabs.some((tab) => tab.id === activeTab)
+    ? activeTab
+    : visibleTabs[0]?.id ?? "ga4";
+
+  const hasGoogleAdsMetrics = googleAdsMetrics.some(
+    (point) =>
+      point.impressions > 0 ||
+      point.clicks > 0 ||
+      point.cost > 0 ||
+      point.conversions > 0,
+  );
 
   return (
     <section className="min-w-0">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="-mx-1 max-w-full overflow-x-auto px-1 pb-1 sm:mx-0 sm:overflow-visible sm:px-0 sm:pb-0">
           <div className="inline-flex min-w-max gap-1 rounded-full border border-zinc-800 bg-zinc-950 p-1">
-            {TABS.map(({ id, label, icon: Icon }) => {
-              const isActive = activeTab === id;
+            {visibleTabs.map(({ id, label, icon: Icon }) => {
+              const isActive = resolvedActiveTab === id;
               return (
                 <button
                   key={id}
@@ -88,7 +120,7 @@ export function ClientAnalyticsTabs({
       </div>
 
       <div className="mt-6">
-        {activeTab === "ga4" && (
+        {resolvedActiveTab === "ga4" && (
           <div className="space-y-4">
             {!ga4Connected && (
               <IntegrationEmptyState
@@ -125,7 +157,49 @@ export function ClientAnalyticsTabs({
           </div>
         )}
 
-        {activeTab === "meta" && (
+        {resolvedActiveTab === "google_ads" && (
+          <div className="space-y-4">
+            {!googleAdsConnected && (
+              <IntegrationEmptyState
+                icon={CircleDollarSign}
+                title="Google Ads não conectado"
+                description="Conecte o Google Ads na página de integrações deste cliente para visualizar investimento, impressões, cliques e CTR."
+                actionLabel="Configurar Integrações"
+                actionHref={integrationsHref}
+              />
+            )}
+
+            {googleAdsConnected && !googleAdsAccountSelected && (
+              <IntegrationEmptyState
+                icon={CircleDollarSign}
+                title="Selecione a conta de anúncios"
+                description="A conexão com o Google Ads foi concluída. Escolha a conta de anúncios na página de integrações para carregar as métricas."
+                actionLabel="Selecionar conta"
+                actionHref={integrationsHref}
+              />
+            )}
+
+            {googleAdsConnected &&
+              googleAdsAccountSelected &&
+              !hasGoogleAdsMetrics && (
+                <IntegrationEmptyState
+                  icon={CircleDollarSign}
+                  title="Aguardando dados do Google Ads"
+                  description="Não há métricas sincronizadas para o período selecionado. Use o botão de sincronização na página de integrações."
+                  actionLabel="Configurar Integrações"
+                  actionHref={integrationsHref}
+                />
+              )}
+
+            {googleAdsConnected &&
+              googleAdsAccountSelected &&
+              hasGoogleAdsMetrics && (
+                <GoogleAdsDashboardSummary data={googleAdsMetrics} />
+              )}
+          </div>
+        )}
+
+        {resolvedActiveTab === "meta" && (
           <div className="space-y-4">
             {!metaConnected && (
               <IntegrationEmptyState
@@ -170,7 +244,7 @@ export function ClientAnalyticsTabs({
           </div>
         )}
 
-        {activeTab === "crm" && (
+        {resolvedActiveTab === "crm" && (
           <div className="space-y-4">
             {!acConnected && (
               <IntegrationEmptyState

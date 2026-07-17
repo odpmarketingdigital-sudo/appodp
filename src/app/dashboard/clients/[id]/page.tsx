@@ -26,6 +26,7 @@ import type { GA4DashboardReport } from "@/types/ga4";
 
 const CHART_PROVIDERS = [
   { provider: IntegrationProvider.GA4, label: "GA4" },
+  { provider: IntegrationProvider.GOOGLE_ADS, label: "Google Ads" },
   { provider: IntegrationProvider.META_ADS, label: "Meta Ads" },
   { provider: IntegrationProvider.RD_STATION, label: "RD Station" },
 ] as const;
@@ -69,9 +70,12 @@ export default async function ClientDetailPage({
   );
 
   const ga4Token = tokensByProvider.get(IntegrationProvider.GA4);
+  const googleAdsToken = tokensByProvider.get(IntegrationProvider.GOOGLE_ADS);
   const metaToken = tokensByProvider.get(IntegrationProvider.META_ADS);
   const acToken = tokensByProvider.get(IntegrationProvider.ACTIVECAMPAIGN);
   const ga4Connected = Boolean(ga4Token?.isActive);
+  const googleAdsConnected = Boolean(googleAdsToken?.isActive);
+  const googleAdsAccountSelected = Boolean(googleAdsToken?.externalAccountId);
   const metaConnected = Boolean(metaToken?.isActive);
   const acConnected = Boolean(acToken?.isActive);
   const metaAccountSelected = Boolean(metaToken?.externalAccountId);
@@ -164,6 +168,10 @@ export default async function ClientDetailPage({
     data: seriesByProvider.get(provider) ?? [],
   }));
 
+  const googleAdsMetrics = (seriesByProvider.get(IntegrationProvider.GOOGLE_ADS) ?? []).filter(
+    (point) => point.date >= range.start && point.date <= range.end,
+  );
+
   return (
     <main className="flex-1 overflow-x-hidden p-4 sm:p-6">
       <div className="mx-auto w-full max-w-4xl">
@@ -194,6 +202,9 @@ export default async function ClientDetailPage({
           basePath={clientBasePath}
           integrationsHref={integrationsPath}
           ga4Connected={ga4Connected}
+          googleAdsConnected={googleAdsConnected}
+          googleAdsAccountSelected={googleAdsAccountSelected}
+          googleAdsMetrics={googleAdsMetrics}
           metaConnected={metaConnected}
           metaAccountSelected={metaAccountSelected}
           acConnected={acConnected}
