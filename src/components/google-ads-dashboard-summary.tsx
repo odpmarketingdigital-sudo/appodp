@@ -1,3 +1,6 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import { AlertTriangle, Eye, MousePointerClick, Percent, Wallet } from "lucide-react";
 
 import type { MetricPoint } from "@/components/metrics-chart";
@@ -11,6 +14,43 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
 const numberFormatter = new Intl.NumberFormat("pt-BR");
 
 const CTR_ALERT_THRESHOLD = 1.5;
+
+type CampaignStatusFilter = "all" | "active" | "paused";
+
+const CAMPAIGN_STATUS_TABS: {
+  id: CampaignStatusFilter;
+  label: string;
+}[] = [
+  { id: "all", label: "Todas" },
+  { id: "active", label: "Ativas" },
+  { id: "paused", label: "Pausadas" },
+];
+
+function sortByConversions(campaigns: GoogleAdsCampaignPerformanceRow[]) {
+  return [...campaigns].sort((a, b) => b.conversions - a.conversions);
+}
+
+function isPausedCampaign(campaign: GoogleAdsCampaignPerformanceRow): boolean {
+  return campaign.status === "PAUSED";
+}
+
+function isActiveCampaign(campaign: GoogleAdsCampaignPerformanceRow): boolean {
+  return campaign.isActive || campaign.status === "ENABLED";
+}
+
+function filterCampaignsByStatus(
+  campaigns: GoogleAdsCampaignPerformanceRow[],
+  statusFilter: CampaignStatusFilter,
+): GoogleAdsCampaignPerformanceRow[] {
+  const filtered =
+    statusFilter === "active"
+      ? campaigns.filter(isActiveCampaign)
+      : statusFilter === "paused"
+        ? campaigns.filter(isPausedCampaign)
+        : campaigns;
+
+  return sortByConversions(filtered);
+}
 
 type GoogleAdsDashboardSummaryProps = {
   data: MetricPoint[];
@@ -100,6 +140,29 @@ function CampaignPerformanceTable({
 }: {
   campaigns: GoogleAdsCampaignPerformanceRow[];
 }) {
+  const [statusFilter, setStatusFilter] = useState<CampaignStatusFilter>("active");
+
+  const counts = useMemo(
+    () => ({
+      all: campaigns.length,
+      active: campaigns.filter(isActiveCampaign).length,
+      paused: campaigns.filter(isPausedCampaign).length,
+    }),
+    [campaigns],
+  );
+
+  const filteredCampaigns = useMemo(
+    () => filterCampaignsByStatus(campaigns, statusFilter),
+    [campaigns, statusFilter],
+  );
+
+  const emptyMessage =
+    statusFilter === "active"
+      ? "Nenhuma campanha ativa com dados no período selecionado."
+      : statusFilter === "paused"
+        ? "Nenhuma campanha pausada com dados no período selecionado."
+        : "Nenhuma campanha com dados no período. Sincronize as métricas ou verifique se há campanhas na conta.";
+
   return (
     <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5">
       <div className="mb-4">
@@ -111,11 +174,46 @@ function CampaignPerformanceTable({
         </p>
       </div>
 
-      {campaigns.length === 0 ? (
-        <p className="text-sm text-zinc-500">
-          Nenhuma campanha com dados no período. Sincronize as métricas ou
-          verifique se há campanhas ativas na conta.
-        </p>
+      <div className="-mx-1 mb-4 max-w-full overflow-x-auto px-1 pb-1">
+        <div
+          className="inline-flex min-w-max gap-1 rounded-full border border-zinc-800 bg-zinc-950 p-1"
+          role="tablist"
+          aria-label="Filtrar campanhas por status"
+        >
+          {CAMPAIGN_STATUS_TABS.map(({ id, label }) => {
+            const isActive = statusFilter === id;
+            const count = counts[id];
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setStatusFilter(id)}
+                className={
+                  isActive
+                    ? "inline-flex items-center gap-1.5 rounded-full bg-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-100"
+                    : "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-200"
+                }
+              >
+                <span>{label}</span>
+                <span
+                  className={
+                    isActive
+                      ? "tabular-nums text-zinc-300"
+                      : "tabular-nums text-zinc-500"
+                  }
+                >
+                  ({count})
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {filteredCampaigns.length === 0 ? (
+        <p className="text-sm text-zinc-500">{emptyMessage}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
@@ -130,7 +228,7 @@ function CampaignPerformanceTable({
               </tr>
             </thead>
             <tbody>
-              {campaigns.map((campaign) => (
+              {filteredCampaigns.map((campaign) => (
                 <tr
                   key={campaign.campaignId}
                   className="border-b border-zinc-800/60 last:border-0"
@@ -140,7 +238,7 @@ function CampaignPerformanceTable({
                       <p className="truncate font-medium text-zinc-100">
                         {campaign.name}
                       </p>
-                      {!campaign.isActive && (
+                      {statusFilter === "all" && !campaign.isActive && (
                         <p className="mt-0.5 text-xs text-zinc-500">
                           {campaign.status}
                         </p>
